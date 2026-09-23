@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Build outputs / caches
+dist/
+build/
+.vite/
+*.tsbuildinfo
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Environment files & secrets (commit only *.example templates)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Vercel
+.vercel/
+
+# Local-only large source models (> GitHub's 100 MB file limit).
+# The deployable demo model lives in application/frontend/public/models/.
+context/Models/**/*.glb
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.local

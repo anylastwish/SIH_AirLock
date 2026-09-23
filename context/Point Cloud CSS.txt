@@ -1,0 +1,2071 @@
+/* image 6 */
+
+position: absolute;
+width: 1564px;
+height: 793px;
+left: -68px;
+top: 115px;
+
+background: url(image.png);
+
+
+/* Rectangle 52 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 717px;
+height: 51px;
+left: 365px;
+top: 845px;
+
+background: rgba(117, 117, 117, 0.31);
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 72 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 181px;
+height: 121px;
+left: 830px;
+top: 719px;
+
+background: rgba(37, 37, 37, 0.7);
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 61 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 306px;
+height: 31px;
+left: 1123px;
+top: 859px;
+
+background: rgba(117, 117, 117, 0.31);
+opacity: 0.6;
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 64 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 278px;
+height: 31px;
+left: 15px;
+top: 859px;
+
+background: rgba(117, 117, 117, 0.31);
+opacity: 0.6;
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 53 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 129px;
+height: 29px;
+left: 378px;
+top: 856px;
+
+background: rgba(117, 117, 117, 0.31);
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 59 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 29px;
+height: 29px;
+left: 516px;
+top: 856px;
+
+background: rgba(117, 117, 117, 0.31);
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 55 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 78px;
+height: 29px;
+left: 737px;
+top: 856px;
+
+background: rgba(117, 117, 117, 0.31);
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 56 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 239px;
+height: 29px;
+left: 830px;
+top: 856px;
+
+background: rgba(117, 117, 117, 0.31);
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 44 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 149px;
+height: 23px;
+left: 12px;
+top: 176px;
+
+background: rgba(117, 117, 117, 0.31);
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 35 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 30px;
+height: 30px;
+left: 1393px;
+top: 132px;
+
+background: rgba(117, 117, 117, 0.31);
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 51 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 20px;
+height: 17px;
+left: 137px;
+top: 179px;
+
+background: rgba(117, 117, 117, 0.31);
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 36 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 147px;
+height: 30px;
+left: 1235px;
+top: 132px;
+
+background: rgba(117, 117, 117, 0.31);
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 37 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 30px;
+height: 30px;
+left: 1194px;
+top: 132px;
+
+background: rgba(117, 117, 117, 0.31);
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 38 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 30px;
+height: 30px;
+left: 1162px;
+top: 132px;
+
+background: rgba(117, 117, 117, 0.31);
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 39 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 30px;
+height: 30px;
+left: 1130px;
+top: 132px;
+
+background: rgba(117, 117, 117, 0.31);
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 40 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 30px;
+height: 30px;
+left: 1098px;
+top: 132px;
+
+background: rgba(117, 117, 117, 0.31);
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 49 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 114px;
+height: 17px;
+left: 16px;
+top: 179px;
+
+background: rgba(117, 117, 117, 0.31);
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 41 */
+
+position: absolute;
+width: 72px;
+height: 30px;
+left: 1017px;
+top: 132px;
+
+background: #0083D5;
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 66 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 424px;
+height: 30px;
+left: 196px;
+top: 132px;
+
+background: rgba(117, 117, 117, 0.31);
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Line 3 */
+
+position: absolute;
+width: 39px;
+height: 0px;
+left: 553px;
+top: 850px;
+
+opacity: 0.35;
+border: 1px solid #FFFFFF;
+transform: rotate(90deg);
+
+
+/* Line 4 */
+
+position: absolute;
+width: 39px;
+height: 0px;
+left: 823px;
+top: 850px;
+
+opacity: 0.35;
+border: 1px solid #FFFFFF;
+transform: rotate(90deg);
+
+
+/* Line 13 */
+
+position: absolute;
+width: 17px;
+height: 0px;
+left: 1265px;
+top: 866px;
+
+opacity: 0.11;
+border: 1px solid #FFFFFF;
+transform: rotate(90deg);
+
+
+/* Line 14 */
+
+position: absolute;
+width: 17px;
+height: 0px;
+left: 1234px;
+top: 866px;
+
+opacity: 0.11;
+border: 1px solid #FFFFFF;
+transform: rotate(90deg);
+
+
+/* Line 15 */
+
+position: absolute;
+width: 17px;
+height: 0px;
+left: 1160px;
+top: 866px;
+
+opacity: 0.11;
+border: 1px solid #FFFFFF;
+transform: rotate(90deg);
+
+
+/* Ellipse 2 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 23px;
+height: 23px;
+left: 976px;
+top: 859px;
+
+background: rgba(117, 117, 117, 0.31);
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Ellipse 3 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 23px;
+height: 23px;
+left: 1006px;
+top: 859px;
+
+background: rgba(117, 117, 117, 0.31);
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 57 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 66px;
+height: 23px;
+left: 902px;
+top: 859px;
+
+background: rgba(117, 117, 117, 0.31);
+opacity: 0.28;
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 89 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 23px;
+height: 23px;
+left: 1041px;
+top: 859px;
+
+background: rgba(117, 117, 117, 0.31);
+opacity: 0.28;
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 81 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 23px;
+height: 23px;
+left: 382px;
+top: 859px;
+
+background: rgba(117, 117, 117, 0.31);
+opacity: 0.28;
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 88 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 23px;
+height: 23px;
+left: 519px;
+top: 859px;
+
+background: rgba(117, 117, 117, 0.31);
+opacity: 0.28;
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 82 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 23px;
+height: 23px;
+left: 414px;
+top: 859px;
+
+background: rgba(117, 117, 117, 0.31);
+opacity: 0.28;
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 83 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 23px;
+height: 23px;
+left: 446px;
+top: 859px;
+
+background: rgba(117, 117, 117, 0.31);
+opacity: 0.28;
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 84 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 23px;
+height: 23px;
+left: 478px;
+top: 859px;
+
+background: rgba(117, 117, 117, 0.31);
+opacity: 0.28;
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 69 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 24px;
+height: 13px;
+left: 924px;
+top: 864px;
+
+background: rgba(117, 117, 117, 0.31);
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 70 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 13px;
+height: 13px;
+left: 952px;
+top: 864px;
+
+background: rgba(117, 117, 117, 0.31);
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* + */
+
+position: absolute;
+width: 4px;
+height: 11px;
+left: 957px;
+top: 865px;
+
+font-family: 'Jersey 10';
+font-style: normal;
+font-weight: 400;
+font-size: 10px;
+line-height: 11px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* 2D */
+
+position: absolute;
+width: 9px;
+height: 11px;
+left: 983px;
+top: 865px;
+
+font-family: 'Jersey 10';
+font-style: normal;
+font-weight: 400;
+font-size: 10px;
+line-height: 11px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* 3D */
+
+position: absolute;
+width: 9px;
+height: 11px;
+left: 1013px;
+top: 865px;
+
+font-family: 'Jersey 10';
+font-style: normal;
+font-weight: 400;
+font-size: 10px;
+line-height: 11px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* Rectangle 71 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 13px;
+height: 13px;
+left: 907px;
+top: 864px;
+
+background: rgba(117, 117, 117, 0.31);
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 80 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 13px;
+height: 13px;
+left: 990px;
+top: 724px;
+
+background: rgba(117, 117, 117, 0.31);
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* close */
+
+position: absolute;
+width: 9px;
+height: 9px;
+left: 992px;
+top: 726px;
+
+
+
+/* icon */
+
+position: absolute;
+left: 20.83%;
+right: 20.83%;
+top: 20.83%;
+bottom: 20.83%;
+
+background: #FFFFFF;
+
+
+/* 100% */
+
+position: absolute;
+width: 17px;
+height: 11px;
+left: 929px;
+top: 865px;
+
+font-family: 'Jersey 10';
+font-style: normal;
+font-weight: 400;
+font-size: 10px;
+line-height: 11px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* Copyright @ AirLock++ */
+
+position: absolute;
+width: 93px;
+height: 13px;
+left: 26px;
+top: 870px;
+
+font-family: 'Jersey 10';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 13px;
+/* identical to box height */
+
+color: #868686;
+
+
+
+/* Confidence: 100% */
+
+position: absolute;
+width: 71px;
+height: 13px;
+left: 133px;
+top: 870px;
+
+font-family: 'Jersey 10';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 13px;
+/* identical to box height */
+
+color: #868686;
+
+
+
+/* Rectangle 58 */
+
+position: absolute;
+width: 57px;
+height: 23px;
+left: 836px;
+top: 859px;
+
+background: rgba(255, 255, 255, 0.31);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 73 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 167px;
+height: 34px;
+left: 835px;
+top: 744px;
+
+background: rgba(117, 117, 117, 0.31);
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 74 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 167px;
+height: 34px;
+left: 835px;
+top: 796px;
+
+background: rgba(117, 117, 117, 0.31);
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* File */
+
+position: absolute;
+width: 19px;
+height: 14px;
+left: 230px;
+top: 141px;
+
+font-family: 'Jersey 25';
+font-style: normal;
+font-weight: 400;
+font-size: 14px;
+line-height: 14px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* View */
+
+position: absolute;
+width: 26px;
+height: 14px;
+left: 293px;
+top: 141px;
+
+font-family: 'Jersey 25';
+font-style: normal;
+font-weight: 400;
+font-size: 14px;
+line-height: 14px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* Edit */
+
+position: absolute;
+width: 21px;
+height: 14px;
+left: 363px;
+top: 141px;
+
+font-family: 'Jersey 25';
+font-style: normal;
+font-weight: 400;
+font-size: 14px;
+line-height: 14px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* Add */
+
+position: absolute;
+width: 20px;
+height: 14px;
+left: 429px;
+top: 141px;
+
+font-family: 'Jersey 25';
+font-style: normal;
+font-weight: 400;
+font-size: 14px;
+line-height: 14px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* Tools */
+
+position: absolute;
+width: 29px;
+height: 14px;
+left: 493px;
+top: 141px;
+
+font-family: 'Jersey 25';
+font-style: normal;
+font-weight: 400;
+font-size: 14px;
+line-height: 14px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* Help */
+
+position: absolute;
+width: 23px;
+height: 14px;
+left: 562px;
+top: 141px;
+
+font-family: 'Jersey 25';
+font-style: normal;
+font-weight: 400;
+font-size: 14px;
+line-height: 14px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* Invite */
+
+position: absolute;
+width: 30px;
+height: 14px;
+left: 1038px;
+top: 140px;
+
+font-family: 'Jersey 25';
+font-style: normal;
+font-weight: 400;
+font-size: 14px;
+line-height: 14px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* AIRLOCK++ */
+
+position: absolute;
+width: 82px;
+height: 20px;
+left: 73px;
+top: 140px;
+
+font-family: 'Jersey 25';
+font-style: normal;
+font-weight: 400;
+font-size: 20px;
+line-height: 20px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* Line 5 */
+
+position: absolute;
+width: 25px;
+height: 0px;
+left: 270px;
+top: 134px;
+
+background: rgba(150, 150, 150, 0.1);
+border: 1px solid rgba(150, 150, 150, 0.29);
+backdrop-filter: blur(4.8px);
+/* Note: backdrop-filter has minimal browser support */
+transform: rotate(90deg);
+
+
+/* Line 6 */
+
+position: absolute;
+width: 25px;
+height: 0px;
+left: 342px;
+top: 134px;
+
+background: rgba(150, 150, 150, 0.1);
+border: 1px solid rgba(150, 150, 150, 0.29);
+backdrop-filter: blur(4.8px);
+/* Note: backdrop-filter has minimal browser support */
+transform: rotate(90deg);
+
+
+/* Line 7 */
+
+position: absolute;
+width: 25px;
+height: 0px;
+left: 406px;
+top: 134px;
+
+background: rgba(150, 150, 150, 0.1);
+border: 1px solid rgba(150, 150, 150, 0.29);
+backdrop-filter: blur(4.8px);
+/* Note: backdrop-filter has minimal browser support */
+transform: rotate(90deg);
+
+
+/* Line 8 */
+
+position: absolute;
+width: 25px;
+height: 0px;
+left: 468px;
+top: 134px;
+
+background: rgba(150, 150, 150, 0.1);
+border: 1px solid rgba(150, 150, 150, 0.29);
+backdrop-filter: blur(4.8px);
+/* Note: backdrop-filter has minimal browser support */
+transform: rotate(90deg);
+
+
+/* Line 9 */
+
+position: absolute;
+width: 25px;
+height: 0px;
+left: 468px;
+top: 134px;
+
+background: rgba(150, 150, 150, 0.1);
+border: 1px solid rgba(150, 150, 150, 0.29);
+backdrop-filter: blur(4.8px);
+/* Note: backdrop-filter has minimal browser support */
+transform: rotate(90deg);
+
+
+/* Line 10 */
+
+position: absolute;
+width: 25px;
+height: 0px;
+left: 540px;
+top: 134px;
+
+background: rgba(150, 150, 150, 0.1);
+border: 1px solid rgba(150, 150, 150, 0.29);
+backdrop-filter: blur(4.8px);
+/* Note: backdrop-filter has minimal browser support */
+transform: rotate(90deg);
+
+
+/* arrow_drop_down */
+
+position: absolute;
+width: 24px;
+height: 24px;
+left: 135px;
+top: 175px;
+
+
+
+/* icon */
+
+position: absolute;
+left: 29.17%;
+right: 29.17%;
+top: 41.67%;
+bottom: 37.5%;
+
+background: #FFFFFF;
+
+
+/* Point Cloud Model */
+
+position: absolute;
+width: 73px;
+height: 13px;
+left: 23px;
+top: 181px;
+
+font-family: 'Jersey 10';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 13px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* Rectangle 67 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 286px;
+height: 23px;
+left: 1143px;
+top: 179px;
+
+background: rgba(117, 117, 117, 0.31);
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 68 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 20px;
+height: 17px;
+left: 1403px;
+top: 182px;
+
+background: rgba(117, 117, 117, 0.31);
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* arrow_drop_down */
+
+position: absolute;
+width: 24px;
+height: 24px;
+left: 1401px;
+top: 179px;
+
+
+
+/* icon */
+
+position: absolute;
+visibility: hidden;
+left: 29.17%;
+right: 29.17%;
+top: 41.67%;
+bottom: 37.5%;
+
+background: #FFFFFF;
+
+
+/* Overall Analytics */
+
+position: absolute;
+width: 69px;
+height: 13px;
+left: 1168px;
+top: 184px;
+
+font-family: 'Jersey 10';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 13px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* Today */
+
+position: absolute;
+width: 25px;
+height: 13px;
+left: 1348px;
+top: 184px;
+
+font-family: 'Jersey 10';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 13px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* Roronoa Zoro */
+
+position: absolute;
+width: 70px;
+height: 14px;
+left: 1267px;
+top: 135px;
+
+font-family: 'Jersey 15';
+font-style: normal;
+font-weight: 400;
+font-size: 14px;
+line-height: 14px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* roronoa.zoro23@spit.ac.in */
+
+position: absolute;
+width: 75px;
+height: 9px;
+left: 1267px;
+top: 149px;
+
+font-family: 'Jersey 10';
+font-style: normal;
+font-weight: 400;
+font-size: 8px;
+line-height: 9px;
+/* identical to box height */
+
+color: #CBCBCB;
+
+
+
+/* image 10 */
+
+position: absolute;
+width: 25px;
+height: 25px;
+left: 1238px;
+top: 134px;
+
+background: url(image.png);
+border-radius: 5px;
+
+
+/* Group 2 */
+
+position: absolute;
+width: 3px;
+height: 11px;
+left: 1367px;
+top: 142px;
+
+
+
+/* Ellipse 5 */
+
+position: absolute;
+width: 3px;
+height: 3px;
+left: 1367px;
+top: 142px;
+
+background: #FFFFFF;
+
+
+/* Ellipse 6 */
+
+position: absolute;
+width: 3px;
+height: 3px;
+left: 1367px;
+top: 146px;
+
+background: #FFFFFF;
+
+
+/* Ellipse 7 */
+
+position: absolute;
+width: 3px;
+height: 3px;
+left: 1367px;
+top: 150px;
+
+background: #FFFFFF;
+
+
+/* Settings */
+
+position: absolute;
+width: 21px;
+height: 21px;
+left: 1398px;
+top: 137px;
+
+
+
+/* Icon */
+
+position: absolute;
+left: 4.17%;
+right: 4.17%;
+top: 4.17%;
+bottom: 4.17%;
+
+border: 2.5px solid #797979;
+
+
+/* Calendar */
+
+position: absolute;
+width: 13px;
+height: 13px;
+left: 1376px;
+top: 184px;
+
+
+
+/* Icon */
+
+position: absolute;
+left: 12.5%;
+right: 12.5%;
+top: 8.33%;
+bottom: 8.33%;
+
+border: 1.6px solid #8B8B8B;
+
+
+/* image 11 */
+
+position: absolute;
+width: 27px;
+height: 27px;
+left: 1397px;
+top: 861px;
+
+background: url(image.png);
+border-radius: 61px;
+
+
+/* 38°53'41.77"N 77°02'03.86"W */
+
+position: absolute;
+width: 115px;
+height: 13px;
+left: 1272px;
+top: 869px;
+
+font-family: 'Jersey 10';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 13px;
+/* identical to box height */
+
+color: #868686;
+
+
+
+/* 16m */
+
+position: absolute;
+width: 15px;
+height: 13px;
+left: 1243px;
+top: 869px;
+
+font-family: 'Jersey 10';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 13px;
+/* identical to box height */
+
+color: #868686;
+
+
+
+/* Camera: 500m */
+
+position: absolute;
+width: 58px;
+height: 13px;
+left: 1171px;
+top: 869px;
+
+font-family: 'Jersey 10';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 13px;
+/* identical to box height */
+
+color: #868686;
+
+
+
+/* 50m */
+
+position: absolute;
+width: 17px;
+height: 13px;
+left: 1137px;
+top: 869px;
+
+font-family: 'Jersey 10';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 13px;
+/* identical to box height */
+
+color: #868686;
+
+
+
+/* - */
+
+position: absolute;
+width: 4px;
+height: 11px;
+left: 912px;
+top: 865px;
+
+font-family: 'Jersey 10';
+font-style: normal;
+font-weight: 400;
+font-size: 10px;
+line-height: 11px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* Rotations */
+
+position: absolute;
+width: 34px;
+height: 11px;
+left: 846px;
+top: 865px;
+
+font-family: 'Jersey 10';
+font-style: normal;
+font-weight: 400;
+font-size: 10px;
+line-height: 11px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* Tilt */
+
+position: absolute;
+width: 15px;
+height: 15px;
+left: 861px;
+top: 746px;
+
+font-family: 'Jersey 10';
+font-style: normal;
+font-weight: 400;
+font-size: 14px;
+line-height: 15px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* Heading */
+
+position: absolute;
+width: 39px;
+height: 15px;
+left: 862px;
+top: 798px;
+
+font-family: 'Jersey 10';
+font-style: normal;
+font-weight: 400;
+font-size: 14px;
+line-height: 15px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* Rectangle 78 */
+
+position: absolute;
+width: 131px;
+height: 7px;
+left: 862px;
+top: 819px;
+
+background: rgba(150, 150, 150, 0.51);
+
+
+/* Rectangle 79 */
+
+position: absolute;
+width: 96px;
+height: 7px;
+left: 862px;
+top: 819px;
+
+background: #F8F8F8;
+
+
+/* 0 */
+
+position: absolute;
+width: 3px;
+height: 9px;
+left: 862px;
+top: 758px;
+
+font-family: 'Jersey 10';
+font-style: normal;
+font-weight: 400;
+font-size: 8px;
+line-height: 9px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* 0 */
+
+position: absolute;
+width: 3px;
+height: 9px;
+left: 862px;
+top: 811px;
+
+font-family: 'Jersey 10';
+font-style: normal;
+font-weight: 400;
+font-size: 8px;
+line-height: 9px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* 90 */
+
+position: absolute;
+width: 7px;
+height: 9px;
+left: 987px;
+top: 758px;
+
+font-family: 'Jersey 10';
+font-style: normal;
+font-weight: 400;
+font-size: 8px;
+line-height: 9px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* 360 */
+
+position: absolute;
+width: 10px;
+height: 9px;
+left: 983px;
+top: 810px;
+
+font-family: 'Jersey 10';
+font-style: normal;
+font-weight: 400;
+font-size: 8px;
+line-height: 9px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* Lock */
+
+position: absolute;
+width: 16px;
+height: 16px;
+left: 449px;
+top: 862px;
+
+background: url(.png);
+
+
+/* Hand */
+
+position: absolute;
+width: 16px;
+height: 16px;
+left: 418px;
+top: 862px;
+
+background: url(.png);
+
+
+/* Obscene gesture */
+
+position: absolute;
+width: 19px;
+height: 19px;
+left: 521px;
+top: 861px;
+
+background: url(.png);
+
+
+/* Group 12 */
+
+position: absolute;
+width: 89px;
+height: 29px;
+left: 562px;
+top: 856px;
+
+
+
+/* Group 11 */
+
+position: absolute;
+width: 89px;
+height: 29px;
+left: 562px;
+top: 856px;
+
+
+
+/* Group 10 */
+
+position: absolute;
+width: 89px;
+height: 29px;
+left: 562px;
+top: 856px;
+
+
+
+/* Group 8 */
+
+position: absolute;
+width: 89px;
+height: 29px;
+left: 562px;
+top: 856px;
+
+
+
+/* Group 6 */
+
+position: absolute;
+width: 89px;
+height: 29px;
+left: 562px;
+top: 856px;
+
+
+
+/* Group 5 */
+
+position: absolute;
+width: 89px;
+height: 29px;
+left: 562px;
+top: 856px;
+
+
+
+/* Rectangle 54 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 89px;
+height: 29px;
+left: 562px;
+top: 856px;
+
+background: rgba(117, 117, 117, 0.31);
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 85 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 23px;
+height: 23px;
+left: 568px;
+top: 859px;
+
+background: rgba(117, 117, 117, 0.31);
+opacity: 0.28;
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 87 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 23px;
+height: 23px;
+left: 623px;
+top: 859px;
+
+background: rgba(117, 117, 117, 0.31);
+opacity: 0.28;
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 92 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 23px;
+height: 23px;
+left: 595px;
+top: 859px;
+
+background: rgba(117, 117, 117, 0.31);
+opacity: 0.28;
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Layers */
+
+position: absolute;
+width: 16px;
+height: 16px;
+left: 599px;
+top: 862px;
+
+background: url(.png);
+
+
+/* Group 7 */
+
+position: absolute;
+width: 18px;
+height: 18px;
+left: 627px;
+top: 861px;
+
+
+
+/* Polyline */
+
+position: absolute;
+width: 18px;
+height: 18px;
+left: 627px;
+top: 861px;
+
+background: url(.png);
+
+
+/* Full Screen */
+
+position: absolute;
+width: 15px;
+height: 15px;
+left: 1045px;
+top: 864px;
+
+background: url(.png);
+
+
+/* Group 13 */
+
+position: absolute;
+width: 69px;
+height: 29px;
+left: 659px;
+top: 856px;
+
+
+
+/* Rectangle 60 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 69px;
+height: 29px;
+left: 659px;
+top: 856px;
+
+background: rgba(117, 117, 117, 0.31);
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 90 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 23px;
+height: 23px;
+left: 666px;
+top: 859px;
+
+background: rgba(117, 117, 117, 0.31);
+opacity: 0.28;
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Rectangle 91 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 23px;
+height: 23px;
+left: 699px;
+top: 859px;
+
+background: rgba(117, 117, 117, 0.31);
+opacity: 0.28;
+border: 1px solid rgba(117, 117, 117, 0.1);
+backdrop-filter: blur(7.8px);
+/* Note: backdrop-filter has minimal browser support */
+border-radius: 5px;
+
+
+/* Undo */
+
+position: absolute;
+width: 14px;
+height: 14px;
+left: 672px;
+top: 863px;
+
+background: url(.png);
+
+
+/* Undo */
+
+position: absolute;
+width: 14px;
+height: 14px;
+left: 703px;
+top: 863px;
+
+background: url(.png);
+transform: matrix(-1, 0, 0, 1, 0, 0);
+
+
+/* Target */
+
+position: absolute;
+width: 22px;
+height: 18px;
+left: 479px;
+top: 861px;
+
+background: url(.png);
+
+
+/* Close Pane */
+
+position: absolute;
+width: 15px;
+height: 14px;
+left: 1406px;
+top: 184px;
+
+background: url(.png);
+
+
+/* image 12 */
+
+position: absolute;
+width: 243px;
+height: 640px;
+left: 12px;
+top: 210px;
+
+background: url(image.png);
+
+
+/* Inclination */
+
+position: absolute;
+width: 19px;
+height: 19px;
+left: 838px;
+top: 745px;
+
+background: url(.png);
+
+
+/* Navigation */
+
+position: absolute;
+width: 16px;
+height: 16px;
+left: 840px;
+top: 798px;
+
+transform: matrix(-1, 0, 0, 1, 0, 0);
+
+
+/* Navigation */
+
+position: absolute;
+width: 19px;
+height: 19px;
+left: 839px;
+top: 798px;
+
+background: url(.png);
+
+
+/* Group 16 */
+
+position: absolute;
+width: 1406px;
+height: 752px;
+
+
+
+/* Group 14 */
+
+position: absolute;
+width: 1406px;
+height: 752px;
+
+
+
+/* Cursor */
+
+position: absolute;
+width: 16px;
+height: 16px;
+
+background: url(.png);
+
+
+/* Group 12 */
+
+position: absolute;
+width: 18px;
+height: 18px;
+
+
+
+/* Group 11 */
+
+position: absolute;
+width: 18px;
+height: 18px;
+
+
+
+/* Group 9 */
+
+position: absolute;
+width: 18px;
+height: 18px;
+
+
+
+/* Group 8 */
+
+position: absolute;
+width: 18px;
+height: 18px;
+
+
+
+/* Group 7 */
+
+position: absolute;
+width: 18px;
+height: 18px;
+
+
+
+/* Group 6 */
+
+position: absolute;
+width: 18px;
+height: 18px;
+
+
+
+/* Group 5 */
+
+position: absolute;
+width: 18px;
+height: 18px;
+
+
+
+/* Group 4 */
+
+position: absolute;
+width: 18px;
+height: 18px;
+
+
+
+/* Group 3 */
+
+position: absolute;
+width: 18px;
+height: 18px;
+
+
+
+/* Ruler */
+
+position: absolute;
+width: 18px;
+height: 18px;
+
+background: url(.png);
+
+
+/* Group 17 */
+
+position: absolute;
+width: 1406px;
+height: 727px;
+
+
+
+/* image 7 */
+
+position: absolute;
+width: 46px;
+height: 40px;
+
+background: url(image.png);
+
+
+/* image 13 */
+
+position: absolute;
+width: 253px;
+height: 648px;
+
+background: url(image.png);
