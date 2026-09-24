@@ -31,6 +31,12 @@ Status: **live** (25 Sep 2026).
   camera rejected; real upload UI with the extension-less 496 MB `sarang_dense_cloud` → "Format detected
   from file content (PLY)" → viewer ready (6.13 M of 18.38 M points, auto-levelled).
 
+### Later deployments
+
+| Date | Commit | What | Result |
+|---|---|---|---|
+| 25 Sep 2026 | `6e4f94f` | Crop tool (floating panel) + central control panel active states, Rotations closed by default | auto-deployed from `main`, Ready (19 s build); production UI suite (30 checks: defaults, blue states, panel positions, real crop drags, tilt/heading, selection, zoom) passed on https://airlock-two.vercel.app |
+
 ## Changes made for deployment
 
 - `.gitignore`: all local raw models in `context/Models/` are ignored (not only `*.glb`) — e.g.
