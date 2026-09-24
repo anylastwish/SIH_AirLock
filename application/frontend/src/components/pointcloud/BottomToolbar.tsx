@@ -32,9 +32,12 @@ import { ACTIVE_BLUE, DISABLED, FOCUS_RING, HOVER, HUD_SURFACE } from './ui'
  *   Ruler          start a new multi-point measurement
  *   Layers         highlight the Layers panel section
  *   Path           toggle the flight-path layer
- *   Crop           Crop Mode: X/Y/Z crop controls (left panel) + crop box; visualization only
- *                  (replaced Undo / Redo — history stays on Ctrl+Z / Ctrl+Y, see PointCloudView)
- *   Rotations      show / hide the Tilt & Heading panel
+ *   Crop           open / close the floating Crop panel (CropControl) + crop box; viewport
+ *                  filter only (replaced Undo / Redo — history stays on Ctrl+Z / Ctrl+Y)
+ *   Rotations      open / close the floating Rotations (Tilt & Heading) panel
+ *
+ * Active (on) controls are blue (`ACTIVE_BLUE`); momentary actions never are.
+ * Full reference: brain/central-control-panel.md.
  *   − 120m +       zoom by real camera distance to the target (range from the model's
  *                  size, no fixed % cap); clicking the distance = default survey view
  *   2D / 3D        top-down (near-orthographic) vs perspective camera

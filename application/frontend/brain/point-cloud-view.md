@@ -189,38 +189,12 @@ dataset, the uploaded file and the source model are never modified — fully rev
   the Default Survey View / Focus frame the whole model, not the crop; crop is not saved across reloads.
   Sliders are disabled while the crop is Off (typed values still apply).
 
-## Central control panel — floating tools & active states (Sep 2026)
-Reference: `context/central_control_panel.png` (Figma scale ×2 → design px).
-- **Floating panels** share `FloatingPanel` (`ui.tsx`): `bg-hud-tilt` glass, `hud-border`, 5 px radius,
-  7.8 px blur, Jersey 14 px title top-left, 13 px X top-right (+ optional header actions), cards =
-  `FLOAT_CARD`. `left` is given in **toolbar design px** and converted with the toolbar's centre and
-  `--pc-toolbar-scale` (`calc(50% + 3.5px + (left − 358.5)·scale)`), bottom = 5 px above the scaled bar —
-  the same anchoring the Rotations panel always used.
-  - **Crop** (`CropControl.tsx`): toolbar x 191, 264 × 198; three 243 × 49 cards (X, Y, Z) with min / max
-    value boxes (58 × 16, `NumberField`) and a 198 × 7 `RangeTrack variant="bar"`; header: On/Off
-    `Toggle`, Reset, X.
-  - **Rotations** (`TiltHeadingControl.tsx`): toolbar x 465, 181 × 121 (unchanged); now titled
-    "Rotations" with Tilt / Heading icons; bars shifted to x 26, 133 wide.
-  - Both can be open together: Crop ends at toolbar x 455, Rotations starts at 465 (≥ 10 px gap at every
-    toolbar scale, verified 34 px at 1440 × 900); neither overlaps the bar (4.9 px gap).
-- **Bars** (`BarSlider`, `RangeTrack variant="bar"`): flat bar, white fill, thin white tick at each value
-  (reference). The side-panel sliders keep the knob style.
-- **State**: `cropOpen` and `rotationsOpen` in the store, both **false by default** (`rotationsOpen` was
-  true before) and toggled by `pc.toggleCropMode` / `pc.toggleRotations` from the toolbar button or the
-  panel's X — one source of truth, no local component state. Closing Crop only hides the panel + crop box;
-  the crop stays applied (viewport filter).
-- **Active = blue**: `ACTIVE_BLUE` (`#0083D5`, the Invite button's accent; hover `#1592e6`) replaced the
-  white `ACTIVE_FILL` for every *stateful* control: current tool (Select / Pan), Lock, Flip (menu open or
-  any flip on; menu items when on), flight Path, Crop (panel open), Rotations (panel open), 2D / 3D (current
-  mode), Fullscreen (while fullscreen). Momentary actions (Focus, Ruler, Layers, zoom −/+, distance) are
-  never blue. Inactive = the existing dark glass. Default screen: Select, Path and 3D are blue (they are
-  on); Crop and Rotations are dark.
-- **Verified** (headless Chrome, demo GLB, real clicks / drags; CSS transitions frozen for colour reads):
-  both panels closed + dark by default; no crop in the left panel; Select/Pan and 2D/3D blue swap; Focus
-  never blue; Crop / Rotations blue when open, dark when closed (button or X); panels 4.9 px above the bar,
-  not overlapping each other; X-max / Y-min drags crop 100 % → 61 % of points; typed Z max ↔ slider sync;
-  3 axes 28 %; On/Off keeps values; Reset; Tilt drag → 90°, Heading → 90°; selection, measurements,
-  render mode, density, size, wheel zoom still work; `tsc` + build clean.
+## Central control panel — floating tools & active states
+**Full reference: `brain/central-control-panel.md`** (layout / coordinates, every control and its action,
+active-blue rules, `cropOpen` / `rotationsOpen` state, Crop and Rotations floating panels, how to add a tool).
+Summary: Crop and Rotations are floating panels 5 px above the bar (shared `FloatingPanel`), both closed
+by default and toggled from their toolbar button (blue while open) or the panel X; every stateful control
+is blue (`ACTIVE_BLUE`, #0083D5) when on, momentary actions never; the left panel has no crop controls.
 
 ## Visual system (unchanged design, one deliberate change)
 - Left/right panels are now **translucent glass** like the toolbar/tilt panel/status bars:
