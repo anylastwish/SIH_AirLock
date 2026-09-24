@@ -8,7 +8,7 @@ import {
   type Vec3,
 } from './pointCloud'
 import { hudLayout } from './hudLayout'
-import { frameBounds, pointXYZ } from './pointCloudMath'
+import { frameBounds, inspectionDistance, objectBounds, pointXYZ, zoomLimits } from './pointCloudMath'
 
 /**
  * Centralised Point Cloud View state.
@@ -37,13 +37,16 @@ export interface FlipState {
   vertical: boolean
 }
 
-/** Camera pose in local Z-up metres; `distance` is the FOV-45° framing distance. */
+/** Camera pose in world-local Z-up metres; `distance` is the FOV-45° framing distance. */
 export interface CameraState {
   target: Vec3
   distance: number
   /** Compass heading the camera looks towards, degrees 0–360 (0 = north). */
   heading: number
-  /** Degrees below the horizon: 0 = level, 90 = straight down. */
+  /**
+   * Camera polar angle around the target, degrees 0–180: 0 = straight down (top
+   * view), 90 = level with the target, 180 = straight up from below.
+   */
   tilt: number
 }
 
@@ -92,7 +95,11 @@ export interface PointCloudState extends ViewSettings {
 }
 
 export const DEFAULT_HEADING = 0
-export const DEFAULT_TILT = 42
+/** 48° from vertical = 42° below the horizon (the approved default survey view). */
+export const DEFAULT_TILT = 48
+export const TILT_RANGE: [number, number] = [0, 180]
+/** Tilt of the 2D (top-down) presentation. */
+const TILT_2D = 0
 export const DEFAULT_POINT_SIZE = 2
 export const POINT_SIZE_RANGE: [number, number] = [1, 6]
 export const MIN_DENSITY = 0.01
@@ -207,15 +214,33 @@ function defaultCameraFor(ds: PointCloudDataset): CameraState {
 }
 
 function normaliseCamera(camera: CameraState): CameraState {
+  const ds = state.dataset
+  const limits = ds ? zoomLimits(ds) : null
   return {
     ...camera,
+    distance: limits ? clamp(camera.distance, limits.min, limits.max) : camera.distance,
     heading: ((camera.heading % 360) + 360) % 360,
-    tilt: clamp(camera.tilt, 0, 90),
+    tilt: clamp(camera.tilt, TILT_RANGE[0], TILT_RANGE[1]),
   }
 }
 
+/** Camera safety: every value finite, distance positive. */
+export const isValidCamera = (c: CameraState) =>
+  c.target.every(Number.isFinite) &&
+  Number.isFinite(c.distance) &&
+  c.distance > 0 &&
+  Number.isFinite(c.heading) &&
+  Number.isFinite(c.tilt)
+
 function pushCamera(camera: CameraState, animate: boolean, extra: Partial<PointCloudState> = {}) {
-  set({ camera: normaliseCamera(camera), cameraRev: state.cameraRev + 1, cameraAnimate: animate, ...extra })
+  // An invalid pose (NaN / Infinity from a degenerate selection etc.) keeps the previous valid camera.
+  const next = normaliseCamera(camera)
+  if (!isValidCamera(next)) {
+    console.warn('Ignoring invalid camera state', camera)
+    if (Object.keys(extra).length) set(extra)
+    return
+  }
+  set({ camera: next, cameraRev: state.cameraRev + 1, cameraAnimate: animate, ...extra })
 }
 
 let loadKey: string | null = null
@@ -373,13 +398,19 @@ export const pc = {
   /** Programmatic camera change (sliders, buttons). `animate` = tween, otherwise apply instantly. */
   setCamera(patch: Partial<CameraState>, animate = false) {
     const camera = { ...state.camera, ...patch }
-    const leaving2d = state.viewMode === '2d' && patch.tilt !== undefined && patch.tilt < 89.5
+    const leaving2d = state.viewMode === '2d' && patch.tilt !== undefined && patch.tilt > TILT_2D + 0.5
     pushCamera(camera, animate, leaving2d ? { viewMode: '3d' } : {})
   },
   /** Renderer → store: the user moved the camera with the mouse (no re-apply). */
   syncCamera(camera: CameraState) {
-    set({ camera })
+    if (isValidCamera(camera)) set({ camera })
   },
+  /**
+   * Focus / Target: nothing selected → whole survey; one point → the object it
+   * belongs to (inspector "Object ID"); several points → their extent. The
+   * distance comes from the real bounding box (≈10 m stand-off where the
+   * structure allows it — see `inspectionDistance`), never a fixed factor.
+   */
   focus() {
     const ds = state.dataset
     if (!ds) return
@@ -391,27 +422,41 @@ export const pc = {
     }
     const aspect = viewportAspect()
     const { heading, tilt } = state.camera
-    let target: Vec3
-    let distance: number
+    let box: { min: Vec3; max: Vec3 } | null = null
     if (ids.length === 1) {
-      target = displayXYZ(ds, pointXYZ(ds, ids[0]), state.flip)
-      distance = (state.defaultCamera?.distance ?? state.camera.distance) * 0.3
+      box = objectBounds(ds, ds.objectIds[ids[0]])
     } else {
-      const pts = ids.map((id) => displayXYZ(ds, pointXYZ(ds, id), state.flip))
       const min: Vec3 = [Infinity, Infinity, Infinity]
       const max: Vec3 = [-Infinity, -Infinity, -Infinity]
-      for (const p of pts) {
+      for (const id of ids) {
+        const p = pointXYZ(ds, id)
         for (let k = 0; k < 3; k += 1) {
           min[k] = Math.min(min[k], p[k])
           max[k] = Math.max(max[k], p[k])
         }
       }
       for (let k = 0; k < 3; k += 1) {
-        const pad = Math.max(2, (max[k] - min[k]) * 0.35)
+        const pad = Math.max(0.5, (max[k] - min[k]) * 0.15)
         min[k] -= pad
         max[k] += pad
       }
-      ;({ target, distance } = frameBounds(min, max, aspect, heading, tilt, 0.8, 0.8))
+      box = { min, max }
+    }
+    let target: Vec3
+    let distance: number
+    if (box) {
+      // Flip mirrors the displayed model: mirror the box corners the same way.
+      const a = displayXYZ(ds, box.min, state.flip)
+      const b = displayXYZ(ds, box.max, state.flip)
+      const min: Vec3 = [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.min(a[2], b[2])]
+      const max: Vec3 = [Math.max(a[0], b[0]), Math.max(a[1], b[1]), Math.max(a[2], b[2])]
+      const framed = frameBounds(min, max, aspect, heading, tilt, 0.8, 0.8)
+      const radius = Math.hypot(max[0] - min[0], max[1] - min[1], max[2] - min[2]) / 2
+      target = framed.target
+      distance = inspectionDistance(radius, framed.distance)
+    } else {
+      target = displayXYZ(ds, pointXYZ(ds, ids[0]), state.flip)
+      distance = inspectionDistance(0, Infinity)
     }
     pushCamera({ ...state.camera, target, distance }, true)
     pc.commit()
@@ -425,17 +470,16 @@ export const pc = {
     pushCamera(defaultCamera, true, { viewMode: '3d' })
     pc.commit()
   },
+  /** Toolbar − / +: real camera distance, limited only by the model's size (`zoomLimits`). */
   zoomBy(factor: number) {
-    const base = state.defaultCamera?.distance ?? state.camera.distance
-    const distance = clamp(state.camera.distance / factor, base * 0.02, base * 4)
-    pushCamera({ ...state.camera, distance }, true)
+    pushCamera({ ...state.camera, distance: state.camera.distance / factor }, true)
     pc.commit()
   },
   setViewMode(mode: ViewMode) {
     if (mode === state.viewMode) return
     if (mode === '2d') {
       lastTilt3d = state.camera.tilt
-      pushCamera({ ...state.camera, tilt: 90 }, true, { viewMode: '2d' })
+      pushCamera({ ...state.camera, tilt: TILT_2D }, true, { viewMode: '2d' })
     } else {
       pushCamera({ ...state.camera, tilt: lastTilt3d }, true, { viewMode: '3d' })
     }

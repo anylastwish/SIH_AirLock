@@ -14,9 +14,11 @@ import {
   hash01,
   pointXYZ,
   polygonOrder,
+  zoomLimits,
 } from '../../lib/pointCloudMath'
 import {
   getState,
+  isValidCamera,
   pc,
   subscribe,
   usePC,
@@ -33,10 +35,18 @@ import {
  * or re-uploads point data. The store is subscribed to directly (not through
  * React) so slider drags cost one uniform write + one frame.
  *
- * Coordinates: data is Z-up local metres; the scene group is rotated so three.js
- * (Y-up) shows it correctly. `toThree` / `fromThree` convert camera vectors.
- * Everything drawn from data sits in a child `model` group whose negative scale
- * applies the toolbar Flip (mirror about the survey centre) without touching data.
+ * Coordinates: the camera, overlays and store use world-local Z-up metres; the
+ * scene group is rotated so three.js (Y-up) shows it correctly. `toThree`
+ * converts camera vectors. Everything drawn from data sits in a child `model`
+ * group whose negative scale applies the toolbar Flip (mirror about the survey
+ * centre). The points themselves stay in their ORIGINAL (native, re-based)
+ * coordinates inside an `aligned` group whose matrix is the model transform
+ * (`dataset.model.linear` = unit scale · orientation / terrain alignment) — the
+ * transform is applied at scene level, never baked into the data.
+ *
+ * Clipping: near / far are recomputed from the model's bounding sphere every
+ * rendered frame (so wheel zoom can never push the model past the far plane),
+ * and zoom limits come from the model's real size (`zoomLimits`).
  */
 
 /* ------------------------------ shaders ------------------------------ */
@@ -53,6 +63,7 @@ uniform vec2 uZDomain;
 uniform vec2 uConfFilter;
 uniform int uClassMask;
 uniform vec3 uClassColors[6];
+uniform vec3 uZRow;      // 3rd row of the model transform: world-local z = dot(uZRow, position)
 varying vec3 vColor;
 
 // Only compiled in when the dataset actually carries per-point normals (see
@@ -100,7 +111,7 @@ vec3 confidenceRamp(float t) {
 
 void main() {
   int cls = int(aMeta.x + 0.5);
-  float z = position.z;
+  float z = dot(uZRow, position);
   bool visible = uPointsOn > 0.5
     && hash01(uint(gl_VertexID)) < uDensity
     && z >= uZFilter.x && z <= uZFilter.y
@@ -119,6 +130,7 @@ void main() {
 #ifdef USE_NORMAL_SHADING
   // Simple fixed-direction headlight shading — a shading cue when the source
   // (e.g. PLY) actually carries normals; guard against a zero/degenerate normal.
+  // Normals are native-frame; uLightDir is pre-rotated into that frame.
   float nlen = length(aNormal);
   vec3 nn = nlen > 1e-4 ? aNormal / nlen : vec3(0.0, 0.0, 1.0);
   float ndotl = max(dot(nn, uLightDir), 0.0);
@@ -200,12 +212,19 @@ function createViewer(container: HTMLElement, ds: PointCloudDataset): () => void
   const canvas = renderer.domElement
 
   const scene = new THREE.Scene()
+  // near / far are placeholders: updateClipping() sizes them to the model every frame.
   const camera = new THREE.PerspectiveCamera(CAMERA_FOV, container.clientWidth / Math.max(container.clientHeight, 1), 0.1, 5000)
   const world = new THREE.Group()
   world.rotation.x = -Math.PI / 2 // local Z-up → three.js Y-up
   scene.add(world)
   const model = new THREE.Group()
   world.add(model)
+  // Model transform (unit scale · orientation / terrain alignment): original coordinates → world-local.
+  const L = ds.model.linear
+  const aligned = new THREE.Group()
+  aligned.matrixAutoUpdate = false
+  aligned.matrix.set(L[0], L[1], L[2], 0, L[3], L[4], L[5], 0, L[6], L[7], L[8], 0, 0, 0, 0, 1)
+  model.add(aligned)
 
   /* ---- point cloud (single draw call) ---- */
   const geometry = new THREE.BufferGeometry()
@@ -227,7 +246,14 @@ function createViewer(container: HTMLElement, ds: PointCloudDataset): () => void
     uConfFilter: { value: new THREE.Vector2(0, 1) },
     uClassMask: { value: 63 },
     uClassColors: { value: SEMANTIC_CLASSES.map((c) => new THREE.Vector3(...hexToRgb(c.color))) },
-    uLightDir: { value: new THREE.Vector3(0.35, 0.55, 0.75).normalize() },
+    uZRow: { value: new THREE.Vector3(L[6], L[7], L[8]) },
+    // World light direction rotated into the native frame of the normals (Rᵀ · light).
+    uLightDir: {
+      value: new THREE.Vector3(0.35, 0.55, 0.75)
+        .normalize()
+        .applyMatrix3(new THREE.Matrix3().fromArray(ds.model.rotation)) // fromArray is column-major ⇒ Rᵀ
+        .normalize(),
+    },
   }
   const material = new THREE.ShaderMaterial({
     vertexShader: VERTEX,
@@ -237,7 +263,7 @@ function createViewer(container: HTMLElement, ds: PointCloudDataset): () => void
   })
   const points = new THREE.Points(geometry, material)
   points.frustumCulled = false
-  model.add(points)
+  aligned.add(points)
 
   /* ---- helper geometry: survey boundary + prototype flight path ---- */
   const fb = ds.focusBounds
@@ -348,7 +374,7 @@ function createViewer(container: HTMLElement, ds: PointCloudDataset): () => void
   controls.enableDamping = true
   controls.dampingFactor = 0.12
   controls.screenSpacePanning = true
-  controls.maxPolarAngle = Math.PI / 2
+  controls.maxPolarAngle = Math.PI - 1e-4
 
   const focusRadius = Math.hypot(...([0, 1, 2].map((k) => fb.max[k] - fb.min[k]) as Vec3)) / 2 || 1
   const clampMin = new THREE.Vector3(fb.min[0] - focusRadius * 0.3, fb.min[2] - focusRadius * 0.3, -(fb.max[1] + focusRadius * 0.3))
@@ -361,8 +387,37 @@ function createViewer(container: HTMLElement, ds: PointCloudDataset): () => void
   let currentFov = initial.viewMode === '2d' ? FOV_2D : CAMERA_FOV
 
   const fovScale = (fov: number) => Math.tan(rad(CAMERA_FOV / 2)) / Math.tan(rad(fov / 2))
+  const limits = zoomLimits(ds)
 
-  const applyPose = (cam: CameraState, fov: number) => {
+  /* ---- dynamic clipping: near / far follow the camera and the model's bounding sphere ---- */
+  const sphereLocal = new THREE.Vector3(...ds.model.boundingSphere.center)
+  const sphereRadius = ds.model.boundingSphere.radius
+  const sphereCenter = new THREE.Vector3()
+  const updateClipping = () => {
+    world.updateMatrixWorld(true)
+    model.localToWorld(sphereCenter.copy(sphereLocal))
+    const toCenter = camera.position.distanceTo(sphereCenter)
+    const toTarget = camera.position.distanceTo(controls.target)
+    // Far: the far side of the whole model (+5 %). Near: just in front of the model's
+    // near side when outside it; when inside (close inspection) a small fraction of the
+    // target distance. The far/near ratio is capped at 5·10⁴ so the depth buffer keeps
+    // precision on large surveys (points need no logarithmic depth at this ratio).
+    const far = (toCenter + sphereRadius) * 1.05 + 1e-3
+    const outside = toCenter - sphereRadius
+    const near = Math.max(far * 2e-5, outside > 0 ? outside * 0.8 : Math.min(toTarget * 0.01, 1))
+    if (!Number.isFinite(near) || !Number.isFinite(far)) return
+    if (Math.abs(camera.near - near) > near * 0.01 || Math.abs(camera.far - far) > far * 0.01) {
+      camera.near = near
+      camera.far = far
+      camera.updateProjectionMatrix()
+    }
+  }
+
+  /** Last pose that produced a finite camera — restored if anything goes invalid. */
+  let lastValid: CameraState = initial.camera
+
+  const applyPose = (requested: CameraState, fov: number) => {
+    const cam = isValidCamera(requested) ? requested : lastValid
     applying = true
     // Discard pending damping momentum from a previous mouse drag: with damping off,
     // update() consumes it against the old pose, which we overwrite right below.
@@ -376,23 +431,22 @@ function createViewer(container: HTMLElement, ds: PointCloudDataset): () => void
     const scale = fovScale(fov)
     const dist = cam.distance * scale
     const h = rad(cam.heading)
-    const t = rad(Math.min(cam.tilt, 89.99))
+    // Tilt = polar angle (0 top view … 180 from below); keep off the exact poles so heading stays defined.
+    const t = rad(Math.min(Math.max(cam.tilt, 0.01), 179.99))
     const target = toThree(cam.target)
-    const ox = -Math.sin(h) * Math.cos(t) * dist
-    const oy = -Math.cos(h) * Math.cos(t) * dist
-    const oz = Math.sin(t) * dist
+    const ox = -Math.sin(h) * Math.sin(t) * dist
+    const oy = -Math.cos(h) * Math.sin(t) * dist
+    const oz = Math.cos(t) * dist
     camera.position.set(target.x + ox, target.y + oz, target.z - oy)
     controls.target.copy(target)
-    const base = getState().defaultCamera?.distance ?? cam.distance
-    controls.minDistance = base * 0.02 * scale
-    controls.maxDistance = base * 6 * scale
-    camera.near = Math.max(0.05, (cam.distance * scale) / 400)
-    camera.far = cam.distance * scale + focusRadius * 6
-    camera.updateProjectionMatrix()
+    controls.minDistance = limits.min * scale
+    controls.maxDistance = limits.max * scale
+    updateClipping()
     controls.update()
     controls.enableDamping = true
     applying = false
     needsRender = true
+    lastValid = cam
   }
 
   const readPose = (): CameraState => {
@@ -406,7 +460,7 @@ function createViewer(container: HTMLElement, ds: PointCloudDataset): () => void
       target: [t.x, -t.z, t.y],
       distance: length / fovScale(camera.fov),
       heading: (deg(Math.atan2(-localX, -localY)) + 360) % 360,
-      tilt: deg(Math.asin(Math.max(-1, Math.min(1, localZ / length)))),
+      tilt: deg(Math.acos(Math.max(-1, Math.min(1, localZ / length)))),
     }
   }
 
@@ -426,6 +480,12 @@ function createViewer(container: HTMLElement, ds: PointCloudDataset): () => void
   controls.addEventListener('change', () => {
     needsRender = true
     if (applying) return
+    // Camera safety: a degenerate mouse move can never leave NaN / Infinity behind.
+    if (![camera.position.x, camera.position.y, camera.position.z, controls.target.x, controls.target.y, controls.target.z].every(Number.isFinite)) {
+      tween = null
+      applyPose(lastValid, currentFov)
+      return
+    }
     // Keep the view target inside the survey so the model can't be lost.
     const target = controls.target
     const clamped = target.clone().clamp(clampMin, clampMax)
@@ -451,7 +511,7 @@ function createViewer(container: HTMLElement, ds: PointCloudDataset): () => void
         : { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN }
     // 2D presentation is top-down only: lock the polar angle, heading stays free.
     controls.minPolarAngle = 1e-4
-    controls.maxPolarAngle = s.viewMode === '2d' ? 1e-4 : Math.PI / 2
+    controls.maxPolarAngle = s.viewMode === '2d' ? 1e-4 : Math.PI - 1e-4
     canvas.style.cursor = s.navLocked ? 'default' : s.tool === 'pan' ? 'grab' : 'crosshair'
   }
 
@@ -532,9 +592,11 @@ function createViewer(container: HTMLElement, ds: PointCloudDataset): () => void
     const H = rect.height
     camera.updateMatrixWorld()
     world.updateMatrixWorld(true)
+    // Points are in native coordinates: project through the full chain incl. the model transform.
     const e = new THREE.Matrix4()
       .multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
-      .multiply(model.matrixWorld).elements
+      .multiply(points.matrixWorld).elements
+    const [zr0, zr1, zr2] = [L[6], L[7], L[8]]
     const s = getState()
     const tolerance = Math.max(7, s.pointSize * 2 + 4)
     const tol2 = tolerance * tolerance
@@ -549,13 +611,14 @@ function createViewer(container: HTMLElement, ds: PointCloudDataset): () => void
     const candidates: number[] = []
     if (!s.layers.points) return null
     for (let i = 0; i < ds.count; i += 1) {
+      const x = pos[i * 3]
+      const y = pos[i * 3 + 1]
       const z = pos[i * 3 + 2]
-      if (z < zMin || z > zMax) continue
+      const worldZ = zr0 * x + zr1 * y + zr2 * z
+      if (worldZ < zMin || worldZ > zMax) continue
       if (((mask >> meta[i * 4]) & 1) === 0) continue
       const conf = col[i * 4 + 3]
       if (conf < cMin || conf > cMax) continue
-      const x = pos[i * 3]
-      const y = pos[i * 3 + 1]
       const w = e[3] * x + e[7] * y + e[11] * z + e[15]
       if (w <= 0) continue
       const sx = ((e[0] * x + e[4] * y + e[8] * z + e[12]) / w * 0.5 + 0.5) * W - px
@@ -659,6 +722,7 @@ function createViewer(container: HTMLElement, ds: PointCloudDataset): () => void
     if (syncPending && !tween) flushSync()
     if (needsRender) {
       needsRender = false
+      updateClipping()
       renderer.render(scene, camera)
       placeLabels()
       const debug = (window as unknown as { __pointCloud?: { frames?: number } }).__pointCloud

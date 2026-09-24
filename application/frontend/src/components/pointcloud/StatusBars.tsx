@@ -1,4 +1,5 @@
-import { toGeographic } from '../../lib/pointCloud'
+import { scaleStatus, type ModelState } from '../../lib/modelMetadata'
+import { toGeographic, toReal } from '../../lib/pointCloud'
 import { CAMERA_FOV, fmtDegrees, niceLength, pointXYZ } from '../../lib/pointCloudMath'
 import { pc, usePC } from '../../lib/pointCloudStore'
 import { FOCUS_RING } from './ui'
@@ -39,14 +40,37 @@ function Compass({ heading }: { heading: number }) {
   )
 }
 
+/** Tooltip summary of how scale / orientation / position were determined (lib/modelMetadata.ts). */
+function modelSummary(state: ModelState): string {
+  const units = state.units === 'unknown' ? 'unknown (1 unit shown as 1 m)' : state.units === 'custom' ? `× ${state.unitsToMeters.toPrecision(4)} → m` : state.units
+  const orientation =
+    state.orientation.source === 'geometry'
+      ? `Auto (${state.orientation.label}${state.orientation.inverted ? ', inverted model corrected' : state.orientation.correctionDeg >= 0.05 ? `, ${state.orientation.correctionDeg.toFixed(1)}° levelled` : ''})`
+      : `${state.orientation.source === 'default' ? 'Default' : state.orientation.source === 'format' ? 'Format' : 'Metadata'} — ${state.orientation.label}`
+  return [
+    `Scale: ${scaleStatus(state)} — ${state.scale.label}`,
+    `Units: ${units}`,
+    `Orientation: ${orientation}`,
+    `Position: ${state.position.georeferenced ? 'Georeferenced' : 'Local'} (${state.coordinateSystem})`,
+    `Terrain: ${state.terrain.source}${state.terrain.reliable ? '' : ' (estimated)'}`,
+    ...state.warnings.map((w) => `⚠ ${w}`),
+  ].join('\n')
+}
+
 export function CopyrightStatus() {
   const confidence = usePC((s) => (s.dataset ? `${Math.round(s.dataset.meanConfidence * 100)}%` : '--'))
+  const state = usePC((s) => s.dataset?.model ?? null)
   return (
     <div className={`${BAR} left-[15px] w-[278px]`}>
       <span className={`${TEXT} left-[10px] text-[10px] text-[#f0f0f0]`}>Copyright @ AirLock++</span>
       <span className={`${TEXT} left-[117px] text-[10px] text-[#f0f0f0]`} title="Mean reconstruction confidence of the dataset">
         Confidence: {confidence}
       </span>
+      {state && (
+        <span className={`${TEXT} left-[192px] text-[10px] text-[#f0f0f0]`} title={modelSummary(state)}>
+          Scale: {scaleStatus(state)}
+        </span>
+      )}
     </div>
   )
 }
@@ -59,12 +83,15 @@ export function LocationStatus() {
   const activeId = usePC((s) => s.activeId)
 
   // Position read-out follows the selected point, otherwise the point the camera orbits.
-  const at = ds && activeId !== null ? pointXYZ(ds, activeId) : camera.target
-  const geo = ds ? toGeographic(ds, at[0], at[1]) : null
+  // Values are real-world (world-local + the model's display offset).
+  const local = ds && activeId !== null ? pointXYZ(ds, activeId) : camera.target
+  const at = ds ? toReal(ds, local) : local
+  const geo = ds ? toGeographic(ds, local[0], local[1]) : null
 
   const metresPerPixel = (2 * camera.distance * Math.tan((CAMERA_FOV * Math.PI) / 360)) / Math.max(window.innerHeight, 1)
   const scale = niceLength(metresPerPixel * 90)
-  const altitude = camera.target[2] + Math.sin((camera.tilt * Math.PI) / 180) * camera.distance
+  const targetZ = ds ? toReal(ds, camera.target)[2] : camera.target[2]
+  const altitude = targetZ + Math.cos((camera.tilt * Math.PI) / 180) * camera.distance
 
   return (
     <div className={`${BAR} right-[11px] flex w-[306px] items-center overflow-hidden pl-[13px] pr-[40px]`}>

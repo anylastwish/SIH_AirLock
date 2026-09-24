@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
+import { fmtDistance } from '../../lib/pointCloudMath'
 import { pc, usePC, type FlipAxis } from '../../lib/pointCloudStore'
 import { ACTIVE_FILL, DISABLED, FOCUS_RING, HOVER, HUD_SURFACE } from './ui'
 
@@ -34,7 +35,8 @@ import { ACTIVE_FILL, DISABLED, FOCUS_RING, HOVER, HUD_SURFACE } from './ui'
  *   Path           toggle the flight-path layer
  *   Undo / Redo    view + selection history
  *   Rotations      show / hide the Tilt & Heading panel
- *   − 100% +       zoom (100% = default survey framing)
+ *   − 120m +       zoom by real camera distance to the target (range from the model's
+ *                  size, no fixed % cap); clicking the distance = default survey view
  *   2D / 3D        top-down (near-orthographic) vs perspective camera
  *   Fullscreen     enter / leave fullscreen
  */
@@ -208,9 +210,7 @@ export default function BottomToolbar() {
   const rotationsOpen = usePC((s) => s.rotationsOpen)
   const viewMode = usePC((s) => s.viewMode)
   const fullscreen = usePC((s) => s.fullscreen)
-  const zoomPercent = usePC((s) =>
-    s.defaultCamera ? Math.round((s.defaultCamera.distance / s.camera.distance) * 100) : 100,
-  )
+  const cameraDistance = usePC((s) => (s.dataset ? fmtDistance(s.camera.distance) : '—'))
   const ready = usePC((s) => s.dataset !== null)
 
   const status = locked ? 'Locked' : tool === 'pan' ? 'Pan' : multi ? 'Select · Multi' : 'Select'
@@ -309,13 +309,13 @@ export default function BottomToolbar() {
         </button>
         <button
           type="button"
-          title="Zoom level — click to return to the default survey view"
+          title="Camera distance to the target — click to return to the default survey view"
           aria-label="Reset to default survey view"
           disabled={!ready}
           onClick={pc.resetView}
-          className={`${CHIP} left-[93px] top-[7px] h-[13px] w-[24px] ${ready ? HOVER : DISABLED}`}
+          className={`${CHIP} left-[93px] top-[7px] h-[13px] w-[24px] whitespace-nowrap ${ready ? HOVER : DISABLED}`}
         >
-          {zoomPercent}%
+          {cameraDistance}
         </button>
         <button type="button" title="Zoom in" aria-label="Zoom in" disabled={!ready} onClick={() => pc.zoomBy(1.25)} className={`${CHIP} left-[121px] top-[7px] h-[13px] w-[13px] ${ready ? HOVER : DISABLED}`}>
           +

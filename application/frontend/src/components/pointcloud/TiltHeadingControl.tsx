@@ -5,9 +5,10 @@ import { BarSlider, FOCUS_RING, HOVER, HUD_SURFACE } from './ui'
 /**
  * Floating Tilt / Heading panel above the right end of the bottom toolbar.
  * Both sliders drive the camera (via the store) and follow the camera when it
- * is moved with the mouse. Tilt: 0° level … 90° straight down. Heading: compass
- * direction the camera looks towards, 0–360°. The camera orbits the current
- * target; the model itself never rotates. Its position follows the scaled
+ * is moved with the mouse. Tilt 0–180°: the camera's polar angle around the
+ * target — 0° straight down (top view), 90° level, 180° straight up from below.
+ * Heading: compass direction the camera looks towards, 0–360°. The camera
+ * orbits the current target; the model itself never rotates. Its position follows the scaled
  * toolbar (`--pc-toolbar-scale`): 5px above it, left edge over Rotations.
  */
 
@@ -81,11 +82,11 @@ export default function TiltHeadingControl() {
       <AngleRow
         label="Tilt"
         min="0"
-        max="90"
+        max="180"
         top={24}
-        value={tilt / 90}
+        value={tilt / 180}
         unit={tilt}
-        onChange={(f) => pc.setCamera({ tilt: f * 90 })}
+        onChange={(f) => pc.setCamera({ tilt: f * 180 })}
       />
       <AngleRow
         label="Heading"

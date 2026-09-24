@@ -31,7 +31,7 @@ export default function ModelStatusBadge({ modelName }: { modelName: string }) {
         <span>
           {text}
           <span className="block text-white/45">
-            {loading ? modelName : status.kind === 'unsupported' ? 'Try a GLB, GLTF or PLY model.' : 'Check the model file and reload.'}
+            {loading ? modelName : status.kind === 'unsupported' ? 'Try a GLB, GLTF, OBJ or PLY model.' : 'Check the model file and reload.'}
           </span>
         </span>
       </div>

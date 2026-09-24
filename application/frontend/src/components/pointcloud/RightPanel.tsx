@@ -253,7 +253,13 @@ interface Row {
 
 const ROW_TOPS = [40, 55.7, 72, 88, 113]
 
-function measurementView(m: Measurement, count: number): { title: string; rows: Row[] } {
+/**
+ * All values come from `measureSelection` — world-local metres (normalised scale,
+ * aligned orientation), absolute coordinates converted to real-world values.
+ * `terrainEstimated` marks terrain-derived values when no real DTM exists.
+ */
+function measurementView(m: Measurement, count: number, terrainEstimated: boolean): { title: string; rows: Row[] } {
+  const est = terrainEstimated ? 'estimated' : undefined
   switch (m.kind) {
     case 'none':
       return { title: 'No selection', rows: [] }
@@ -264,7 +270,8 @@ function measurementView(m: Measurement, count: number): { title: string; rows: 
           { label: 'X', value: fmtMetres(m.x, 3) },
           { label: 'Y', value: fmtMetres(m.y, 3) },
           { label: 'Z', value: fmtMetres(m.z, 3) },
-          { label: 'Terrain Elevation', value: fmtMetres(m.terrainElevation, 3) },
+          { label: 'Terrain Elevation', value: fmtMetres(m.terrainElevation, 3), note: est },
+          { label: 'Height Above Terrain', value: fmtMetres(m.heightAboveTerrain, 3), note: est },
         ],
       }
     case 'line':
@@ -298,7 +305,9 @@ function measurementView(m: Measurement, count: number): { title: string; rows: 
           { label: 'Boundary Perimeter', value: fmtMetres(m.perimeter) },
           { label: 'Surface Area', value: `${fmt(m.surfaceArea)} m²` },
           { label: 'Plan Area', value: `${fmt(m.planArea)} m²` },
-          { label: 'Volume', value: 'N/A', note: 'needs a base surface' },
+          m.volume === null
+            ? { label: 'Volume', value: 'N/A', note: 'needs a base surface' }
+            : { label: 'Volume', value: `${fmt(m.volume)} m³`, note: 'above terrain' },
         ],
       }
     case 'region':
@@ -308,14 +317,22 @@ function measurementView(m: Measurement, count: number): { title: string; rows: 
           { label: 'Centroid X', value: fmtMetres(m.centroid[0], 3) },
           { label: 'Centroid Y', value: fmtMetres(m.centroid[1], 3) },
           { label: 'Centroid Z', value: fmtMetres(m.centroid[2], 3) },
-          { label: 'Terrain Elevation', value: `${fmtMetres(m.terrainMean, 3)} avg` },
+          { label: 'Terrain Elevation', value: `${fmtMetres(m.terrainMean, 3)} avg`, note: est },
         ],
       }
   }
 }
 
-export function Measurements({ measurement, count }: { measurement: Measurement; count: number }) {
-  const { title, rows } = measurementView(measurement, count)
+export function Measurements({
+  measurement,
+  count,
+  terrainEstimated = false,
+}: {
+  measurement: Measurement
+  count: number
+  terrainEstimated?: boolean
+}) {
+  const { title, rows } = measurementView(measurement, count, terrainEstimated)
   return (
     <PanelSection
       icon={<Ruler {...ICON} />}
@@ -447,7 +464,7 @@ export default function RightPanel() {
         <InspectorHeader />
         <SelectedPointCard ds={ds} point={point} />
         <SelectionSummary ids={ids} activeId={activeId} />
-        <Measurements measurement={measurement} count={ids.length} />
+        <Measurements measurement={measurement} count={ids.length} terrainEstimated={ds ? !ds.model.terrain.reliable : false} />
         <TerrainStatistics ds={ds} ids={ids} />
         <Actions count={ids.length} />
       </div>

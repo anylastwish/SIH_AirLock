@@ -226,6 +226,8 @@ export function ElevationFilter() {
   const ds = usePC((s) => s.dataset)
   const range = usePC((s) => s.elevation)
   const [z0, z1] = ds?.zRange ?? [0, 1]
+  // Filter values are world-local; the UI shows real-world elevations (+ display offset).
+  const dz = ds?.model.displayOffset[2] ?? 0
   const span = z1 - z0 || 1
   const toFraction = (v: number) => (v - z0) / span
   const commit = (patch: { min?: number; max?: number }) => {
@@ -235,8 +237,8 @@ export function ElevationFilter() {
   return (
     <PanelSection icon={<Mountain {...ICON} />} title="Elevation Filter" className="h-[79px]" defaultOpen={false}>
       <div className="grid grid-cols-[109px_107px] gap-[4.3px] px-[4.3px] pt-[0.5px]">
-        <ElevationField label="Min Elevation (m)" value={range.min} onCommit={(v) => commit({ min: v })} />
-        <ElevationField label="Max Elevation (m)" value={range.max} onCommit={(v) => commit({ max: v })} />
+        <ElevationField label="Min Elevation (m)" value={range.min + dz} onCommit={(v) => commit({ min: v - dz })} />
+        <ElevationField label="Max Elevation (m)" value={range.max + dz} onCommit={(v) => commit({ max: v - dz })} />
       </div>
       <div className="ml-[12.5px] mr-[15.5px] mt-[4px]">
         <RangeTrack
@@ -250,13 +252,13 @@ export function ElevationFilter() {
           }
           onCommit={pc.commit}
           label="Elevation range"
-          valueText={`${range.min.toFixed(1)} to ${range.max.toFixed(1)} m`}
+          valueText={`${(range.min + dz).toFixed(1)} to ${(range.max + dz).toFixed(1)} m`}
           step={0.02}
         />
       </div>
       <div className="mt-[4.5px] flex justify-between px-[7.5px] text-[6.3px] leading-none text-pc-muted">
-        <span>{z0.toFixed(0)} m</span>
-        <span>{z1.toFixed(0)} m</span>
+        <span>{(z0 + dz).toFixed(0)} m</span>
+        <span>{(z1 + dz).toFixed(0)} m</span>
       </div>
     </PanelSection>
   )

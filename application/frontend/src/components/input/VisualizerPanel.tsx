@@ -4,9 +4,12 @@ import type { DragEvent } from 'react'
 import {
   MODEL_FORMATS,
   VISUALIZER_ACCEPT,
+  MODEL_FORMATS as FORMATS,
   extensionOf,
   formatBytes,
   mergeFiles,
+  sniffModelFormat,
+  withModelExtension,
 } from '../../lib/formats'
 import type { ModelSelection } from '../../lib/formats'
 
@@ -22,20 +25,37 @@ export default function VisualizerPanel({ files, onFilesChange, selection }: Vis
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
   const [rejected, setRejected] = useState<string[]>([])
+  const [detected, setDetected] = useState<string[]>([])
 
-  const addFiles = (list: FileList | null) => {
+  // Files are accepted by extension; anything else is identified from its content
+  // (e.g. a PLY exported without ".ply") before being rejected.
+  const addFiles = async (list: FileList | null) => {
     if (!list) return
     const incoming = Array.from(list)
     const supported = new Set(VISUALIZER_ACCEPT.map((e) => e.slice(1)))
-    const accepted = incoming.filter((f) => supported.has(extensionOf(f.name)))
-    setRejected(incoming.filter((f) => !supported.has(extensionOf(f.name))).map((f) => f.name))
+    const accepted: File[] = []
+    const skipped: string[] = []
+    const renamed: string[] = []
+    for (const file of incoming) {
+      if (supported.has(extensionOf(file.name))) {
+        accepted.push(file)
+        continue
+      }
+      const format = await sniffModelFormat(file)
+      if (format) {
+        accepted.push(withModelExtension(file, format))
+        renamed.push(`${file.name} (${FORMATS[format].label})`)
+      } else skipped.push(file.name)
+    }
+    setRejected(skipped)
+    setDetected(renamed)
     if (accepted.length) onFilesChange(mergeFiles(files, accepted))
   }
 
   const handleDrop = (event: DragEvent) => {
     event.preventDefault()
     setDragging(false)
-    addFiles(event.dataTransfer.files)
+    void addFiles(event.dataTransfer.files)
   }
 
   const removeFile = (target: File) => onFilesChange(files.filter((f) => f !== target))
@@ -56,7 +76,7 @@ export default function VisualizerPanel({ files, onFilesChange, selection }: Vis
         className="hidden"
         accept={VISUALIZER_ACCEPT.join(',')}
         onChange={(e) => {
-          addFiles(e.target.files)
+          void addFiles(e.target.files)
           e.target.value = ''
         }}
       />
@@ -102,6 +122,10 @@ export default function VisualizerPanel({ files, onFilesChange, selection }: Vis
         </div>
       </div>
 
+      {detected.length > 0 && (
+        <p className="text-xs text-white/45">Format detected from file content: {detected.join(', ')}</p>
+      )}
+
       {rejected.length > 0 && (
         <p className="text-xs text-white/60">
           Not supported and skipped: {rejected.join(', ')}
@@ -132,7 +156,7 @@ export default function VisualizerPanel({ files, onFilesChange, selection }: Vis
                       : 'border border-white/15 text-white/40'
                   }`}
                 >
-                  {ext in MODEL_FORMATS ? 'Model' : ext === 'mtl' || ext === 'bin' ? ext : 'Texture'}
+                  {ext in MODEL_FORMATS ? 'Model' : ext === 'mtl' || ext === 'bin' ? ext : ext === 'json' ? 'Metadata' : 'Texture'}
                 </span>
                 <button
                   type="button"

@@ -35,6 +35,9 @@ components/pointcloud/     HUD (unchanged layout): TopBar, LeftPanel, RightPanel
 ## Data layer (`lib/pointCloud.ts`)
 **Multi-format support: see `brain/ply-format-support.md` for the PLY adapter, the GLB/PLY code-sharing
 design, and how to add the next format (LAS, OBJ, FBX, textured GLTF…) the same way.**
+**Scale / units, metadata, automatic orientation + terrain alignment, coordinate frames, camera clipping,
+zoom, Focus and Tilt 0–180°: see `brain/model-scaling-and-camera.md` (supersedes the unit / axis / camera
+notes below where they differ — marked "→ updated").**
 - **`PointCloudDataset`**: structure-of-arrays typed arrays — `positions` (xyz, Float32), `colors`
   (RGBA Uint8: rgb + reconstruction confidence in A), `meta` (Uint8×4: semantic class index, semantic
   confidence), `terrainElevation`, `objectIds`, `normals` (xyz Float32 or `null` — only when the source
@@ -42,9 +45,11 @@ design, and how to add the next format (LAS, OBJ, FBX, textured GLTF…) the sam
   `classCounts`, `meanConfidence`, `geoReference | null`, `source` (`{ kind: 'gltf-prototype' |
   'ply-prototype', … }`).
   `colors`/`meta`/`normals` are uploaded to the GPU unchanged; the same arrays serve CPU picking.
-- **Conventions**: local metres, right-handed, **Z up** (X east, Y north) like LAS. Point ID = array
-  index (stable; density sampling never renumbers). Z (point elevation) and `terrainElevation`
-  (ground under the point) are separate fields, never assumed equal.
+- **Conventions** (→ updated): `positions` hold the **original** coordinates (re-based on a Float64
+  origin); `dataset.model` (`ModelState`) maps them to **world-local** metres, right-handed, **Z up**
+  (X east, Y north) — use `worldXYZ`/`pointXYZ`, never raw `positions`, for geometry; `toReal` for displayed
+  values. Point ID = array index (stable; density sampling never renumbers). Z (point elevation) and
+  `terrainElevation` (ground under the point) are separate fields, never assumed equal.
 - **Shared adapter** — `datasetFromObject3D(root, name, options)` — takes any three.js object graph
   (a GLTF scene, or a single `Points`/`Mesh` wrapping a parsed PLY geometry) and produces a
   `PointCloudDataset`. GLB/GLTF and PLY are two thin *loaders* (`loadFromGLTF`, `loadFromPLY` in the
@@ -53,18 +58,22 @@ design, and how to add the next format (LAS, OBJ, FBX, textured GLTF…) the sam
   - Point primitives are copied (uniform stride, cap `DEFAULT_MAX_POINTS = 6.5 M`; the source has 12.6 M
     so stride = 2 → 6.32 M points). Mesh-only models get 400 k area-weighted deterministic surface samples
     (vertex colour or material colour; textures are **not** sampled).
-  - Scene Y-up → Z-up. Units: the Sketchfab normalisation node (`Sketchfab_model`, scale 0.01396) is
-    undone, giving the file's source coordinates (≈ 168 × 193 m footprint, Z 744.8–803.7 m). **Assumption:
-    source units are metres.** Override via `AdapterOptions.unitsToMeters`.
+  - (→ updated) Orientation and units are resolved by priority (embedded › companion › format › geometry ›
+    default) — see `model-scaling-and-camera.md`. For the demo GLB the Sketchfab node (`Sketchfab_model`,
+    scale 0.01396, −90° X) is embedded metadata: normalisation undone, source Z-up, giving the same source
+    coordinates as before (≈ 168 × 193 m footprint, Z 744.8–803.7 m). Mesh samples now take their colour
+    from the diffuse texture when there is one (OBJ/MTL, textured glTF).
   - **Derived, placeholder attributes (replace with real data later):**
     `terrainElevation` = smoothed per-cell minimum on a ~96×96 XY grid (DTM stand-in);
     reconstruction confidence = log local point density per voxel (sparse edges/halo ⇒ low);
-    semantic class = rule-based on colour + height above terrain (water/vegetation/roads/terrain/buildings/other);
+    semantic class = rule-based on colour + height above terrain (water/vegetation/roads/terrain/buildings/other)
+    — unless the source carries per-point classes (PLY classification → ASPRS map), which then win;
     object id = (24×24 XY cell, class) registry → `OBJ_10000+`. These are proxies, **not ML output**.
   - **No georeference**: latitude/longitude show “—”; the bottom-right bar shows local X/Y instead.
     Pass `geoReference` (origin lat/lon) to `datasetFromObject3D` to enable lat/lon everywhere.
-- `loadPointCloud(model, onProgress, onPhase)` is the single entry point used by the store; it dispatches
-  on `model.format` (`glb`/`gltf` → `loadFromGLTF`, `ply` → `loadFromPLY`). To add LAS/backend tiles: write
+- `loadPointCloud(model, onProgress, onPhase)` is the single entry point used by the store; it first looks
+  for an optional companion `<model>.metadata.json`, then dispatches on `model.format` (`glb`/`gltf` →
+  `loadFromGLTF`, `ply` → `loadFromPLY`, `obj` → `loadFromOBJ`). To add LAS/backend tiles: write
   another loader returning a `PointCloudDataset` (or reusing `datasetFromObject3D`) and add one `case`.
 
 ## Renderer (`viewer/PointCloudViewer.tsx`)
@@ -92,7 +101,9 @@ design, and how to add the next format (LAS, OBJ, FBX, textured GLTF…) the sam
 - **Camera**: OrbitControls for mouse orbit/pan/zoom; the store is the source of truth for programmatic
   changes. Pose = target + framing distance + heading + tilt (see below). Programmatic changes tween
   (450 ms) or apply instantly (slider drags); damping momentum is flushed before every programmatic pose.
-  Target is clamped to the survey bounds (+30 %) and polar angle limited to ≤ 90° so the view can't be lost.
+  Target is clamped to the survey bounds (+30 %). (→ updated) Polar angle 0–180° (views from below allowed),
+  near/far recomputed from the model's bounding sphere every frame, zoom range from the model's size, NaN-safe.
+  Points sit in an `aligned` group whose matrix is the model transform (`dataset.model.linear`).
 - **2D** = top-down with FOV 6° and the distance scaled to keep the same framing (near-orthographic “dolly
   zoom”); polar angle locked, heading still free. **3D** restores the previous tilt.
 - Rendering is **on demand** (only on camera/state change); a frame counter is written to
@@ -102,14 +113,15 @@ design, and how to add the next format (LAS, OBJ, FBX, textured GLTF…) the sam
 One store holds: dataset + load status, layers, render mode, density, point size, elevation range, class
 flags (+ search query), confidence range, selection mode/tool/lock, `selectedIds`/`activeId`, camera
 `{target, distance, heading, tilt}`, view mode (2d/3d), Tilt/Heading panel open, fullscreen, canUndo/canRedo.
-- **Heading** = compass direction the camera looks towards (0 = north); **tilt** = degrees below the
-  horizon (0 level … 90 straight down); `distance` = FOV-45° framing distance. The model never rotates.
+- **Heading** = compass direction the camera looks towards (0 = north); **tilt** (→ updated) = camera polar
+  angle 0–180° (0 top view, 90 level, 180 from below; was "0–90° below the horizon"); `distance` = FOV-45°
+  framing distance, clamped by `zoomLimits`. The model never rotates.
 - **Undo/redo** (max 100): snapshots of layers, mode, density, size, elevation, classes, confidence,
   selection, camera, view mode. Discrete actions commit immediately; sliders commit **on release**; mouse
   camera moves commit on OrbitControls `end`. Chrome state (tool, lock, panel open, fullscreen) is not undoable.
 - **Default Survey View** is computed from the dataset's 1–99 % bounds, fitted into the free central area
   between the side panels, header and toolbar (`hudLayout().fitX / fitY`, ≈ 0.54 × 0.78 at 1440×804),
-  heading 0°, tilt 42°. Reset only changes the camera.
+  heading 0°, tilt 48° (= 42° below the horizon, same view as before). Reset only changes the camera.
 - **Flip** (`flip: { horizontal, vertical }`, `pc.toggleFlip(axis)`) mirrors the *displayed* model about the
   focus-bounds centre (horizontal = X / east⇄west, vertical = Z / upside down). It is part of the undo
   snapshot and resets on a new dataset. Data coordinates never change: filters, the inspector and the status
@@ -129,12 +141,12 @@ flags (+ search query), confidence range, selection mode/tool/lock, `selectedIds
 | Selection | Single / Multi dropdown; Clear Selection; count. Single: click replaces / re-click deselects / empty click clears. Multi: click toggles. |
 | Inspector | active point (last selected, or click a chip): id, X/Y/Z, lat/lon (— if not georeferenced), terrain elevation, class, object id, confidence; copy buttons; **preview = side view of the real neighbouring points** |
 | Selection Summary | count `n / 5+`, scrollable chips P1…Pn (click = make active) |
-| Measurements | 1 pt: X/Y/Z/terrain elev · 2 pts: 3D, horizontal, vertical, slope (°, %) · 3 pts: 3D area, perimeter, horizontal side lengths, plane slope, 3D distances · 4 pts: 3D perimeter, 3D surface (fan triangulation), plan area, **Volume = N/A (needs a base surface)** · 5+: centroid X/Y/Z, mean terrain elevation |
+| Measurements | all in normalised world metres (→ `model-scaling-and-camera.md`). 1 pt: X/Y/Z/terrain elev/**height above terrain** · 2 pts: 3D, horizontal, vertical, slope (°, %) · 3 pts: 3D area, perimeter, horizontal side lengths, plane slope, 3D distances · 4 pts: 3D perimeter, 3D surface (fan triangulation), plan area, **Volume above terrain only with a real base surface (ground classes / supplied DTM), else N/A** · 5+: centroid X/Y/Z, mean terrain elevation. Terrain values are marked *(estimated)* without a real DTM |
 | Terrain Statistics | max/min/mean/range of selected point Z |
 | Actions | Clear Selection · Restart Selection (clear + select tool) |
-| Tilt / Heading | sliders drive the camera and follow mouse orbits; value shown next to the label; close (X) hides, **Rotations** reopens. Dragging Tilt in 2D switches back to 3D. |
-| Toolbar | Select · Pan (drag pans) · Lock (freezes navigation, picking still works) · Focus (selection, or the Default Survey View when empty) · **Flip** (glass menu: Flip horizontal / Flip vertical, each a toggle; button highlighted while any flip is on — replaced the old Single⇄Multi Pointer toggle, which remains in the Left panel Selection dropdown; the Ruler still switches to Multi) · Ruler (new multi-point measurement) · Layers (pulses Layers section) · Path (toggle flight path) · Undo/Redo (disabled when empty) · centre box = current mode read-out · Rotations · − / **zoom % (click = reset to Default Survey View)** / + · 2D · 3D · Fullscreen (Fullscreen API, Esc/exit synced) |
-| Status bars | left: mean dataset confidence; right: map scale (≈90 px, 1-2-5), camera altitude, elevation and position of the selected point (else the orbit target), compass (rotates with heading; click = face north) |
+| Tilt / Heading | sliders drive the camera and follow mouse orbits; value shown next to the label; close (X) hides, **Rotations** reopens. Tilt 0–180° (0 top view · 90 level · 180 from below); Heading 0–360°. Dragging Tilt in 2D switches back to 3D. |
+| Toolbar | Select · Pan (drag pans) · Lock (freezes navigation, picking still works) · Focus (selection, or the Default Survey View when empty) · **Flip** (glass menu: Flip horizontal / Flip vertical, each a toggle; button highlighted while any flip is on — replaced the old Single⇄Multi Pointer toggle, which remains in the Left panel Selection dropdown; the Ruler still switches to Multi) · Ruler (new multi-point measurement) · Layers (pulses Layers section) · Path (toggle flight path) · Undo/Redo (disabled when empty) · centre box = current mode read-out · Rotations · − / **camera distance, e.g. `234m` (click = reset to Default Survey View; was zoom %)** / + · 2D · 3D · Fullscreen (Fullscreen API, Esc/exit synced). Focus: one point → its object at ≈10 m stand-off, several → their extent |
+| Status bars | left: mean dataset confidence + **Scale: Metadata / Format / Unknown** (tooltip: units, orientation, position, terrain source, warnings); right (real-world values): map scale (≈90 px, 1-2-5), camera altitude, elevation and position of the selected point (else the orbit target), compass (rotates with heading; click = face north) |
 | Keyboard | Esc clears selection; sliders support arrows/Home/End |
 
 ## Visual system (unchanged design, one deliberate change)
@@ -221,10 +233,11 @@ not the dense body.
 ## Known limitations / next steps
 - Semantic class, confidence, terrain elevation, object ids and the flight path are **prototype proxies** (see
   Data layer); replace with ML/DEM/trajectory outputs by providing them in the dataset — UI/renderer need no change.
-- PLY is supported (`brain/ply-format-support.md`); no LAS/LAZ loader yet (formats.ts still marks it
+- PLY and OBJ(+MTL+textures) are supported; no LAS/LAZ or FBX loader yet (formats.ts still marks them
   unrenderable). Tiled/backend streaming would need a chunked dataset + octree picking; today one dataset
   (≤ 6.5 M points) lives in memory (~250 MB CPU + ~125 MB GPU).
-- No georeference for the prototype (lat/lon “—”). Volume needs a reference/base surface.
+- No georeference for the prototype (lat/lon “—”); a companion `.metadata.json` with a geo origin enables it.
+  Volume needs a reliable base surface (ground classes or supplied DTM).
 - Header menus, Invite, profile, Overall Analytics strip and view switching (Cesium/Semantic) are still visual.
 - Cross-view sync: `pointId`, `objectId` and `semanticClass` are stable per point (see `getPoint`) —
   Point → Object → Semantic → Cesium mapping can hang off these.
@@ -240,3 +253,10 @@ not the dense body.
   with solid lines cluttered the composition).
 - Focus with nothing selected = Default Survey View (spec: focus survey bounds + always be able to reset).
 - Selection tolerance `max(7, pointSize*2+4)` px; depth window 2 % of the nearest candidate.
+- Sep 2026 (model scaling & camera task, details in `model-scaling-and-camera.md`): default tilt stored as 48°
+  polar (same pose as the old 42° below horizon); zoom chip shows camera distance; multi-point Focus padding
+  now max(0.5 m, 15 %) (was max(2 m, 35 %)) since the distance rule already adds the stand-off; the fixed
+  0.3 × default-distance single-point focus was replaced by object focus; near/far no longer depend on the
+  default distance.
+- Sep 2026: model files without an extension are identified by content on upload; large binary point PLYs
+  use a fast typed-array reader (18 M-point `sarang_dense_cloud` — see `ply-format-support.md`).

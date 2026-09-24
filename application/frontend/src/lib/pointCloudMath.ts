@@ -1,6 +1,14 @@
-import type { PointCloudDataset, Vec3 } from './pointCloud'
+import { terrainAt, toReal, worldXYZ, type PointCloudDataset, type Vec3 } from './pointCloud'
 
-/** Pure helpers for the Point Cloud View: measurements, camera framing, formatting. */
+/**
+ * Pure helpers for the Point Cloud View: measurements, camera framing, formatting.
+ *
+ * All geometry here uses WORLD-LOCAL coordinates (metres, Z up — `worldXYZ`), the
+ * same frame the renderer draws, so distances / areas / slopes are always in
+ * normalised real-world units, never raw model units. Values shown as absolute
+ * coordinates or elevations are converted with `toReal` (adds the Float64
+ * display offset of georeferenced / source coordinates).
+ */
 
 /* ---------------- deterministic density sampling (mirrors the vertex shader) ---------------- */
 
@@ -26,7 +34,15 @@ export interface ElevationStats {
 
 export type Measurement =
   | { kind: 'none' }
-  | { kind: 'point'; x: number; y: number; z: number; terrainElevation: number }
+  | {
+      kind: 'point'
+      x: number
+      y: number
+      z: number
+      terrainElevation: number
+      /** Point Z − terrain elevation (roof, tree, … height above ground). */
+      heightAboveTerrain: number
+    }
   | {
       kind: 'line'
       distance3d: number
@@ -50,6 +66,8 @@ export type Measurement =
       perimeter: number
       surfaceArea: number
       planArea: number
+      /** Volume between the polygon surface and the terrain, or null without a reliable base surface. */
+      volume: number | null
       /** Boundary order (indices into the selection) used for the outline. */
       order: number[]
     }
@@ -66,8 +84,43 @@ export const dist3 = (a: Vec3, b: Vec3) => length(sub(a, b))
 export const distXY = (a: Vec3, b: Vec3) => Math.hypot(a[0] - b[0], a[1] - b[1])
 const triangleArea = (a: Vec3, b: Vec3, c: Vec3) => length(cross(sub(b, a), sub(c, a))) / 2
 
-export function pointXYZ(ds: PointCloudDataset, id: number): Vec3 {
-  return [ds.positions[id * 3], ds.positions[id * 3 + 1], ds.positions[id * 3 + 2]]
+/** World-local (metres, Z up) position of a point — the frame used for rendering and measuring. */
+export const pointXYZ = (ds: PointCloudDataset, id: number): Vec3 => worldXYZ(ds, id)
+
+/**
+ * Volume enclosed between a polygon's (fan-triangulated) surface and the terrain
+ * below it, integrated on a plan-view grid. Only meaningful when the terrain is
+ * a real base surface (classified ground or a supplied DTM) — otherwise null.
+ */
+function volumeAboveTerrain(ds: PointCloudDataset, ring: Vec3[]): number | null {
+  if (!ds.model.terrain.reliable || ring.length < 3) return null
+  const xs = ring.map((p) => p[0])
+  const ys = ring.map((p) => p[1])
+  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)]
+  const N = 48
+  const dx = (x1 - x0) / N
+  const dy = (y1 - y0) / N
+  if (!(dx > 0 && dy > 0)) return null
+  let volume = 0
+  for (let j = 0; j < N; j += 1) {
+    for (let i = 0; i < N; i += 1) {
+      const x = x0 + (i + 0.5) * dx
+      const y = y0 + (j + 0.5) * dy
+      for (let t = 1; t < ring.length - 1; t += 1) {
+        const [a, b, c] = [ring[0], ring[t], ring[t + 1]]
+        const d = (b[1] - c[1]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[1] - c[1])
+        if (Math.abs(d) < 1e-12) continue
+        const l1 = ((b[1] - c[1]) * (x - c[0]) + (c[0] - b[0]) * (y - c[1])) / d
+        const l2 = ((c[1] - a[1]) * (x - c[0]) + (a[0] - c[0]) * (y - c[1])) / d
+        const l3 = 1 - l1 - l2
+        if (l1 < 0 || l2 < 0 || l3 < 0) continue
+        const ground = terrainAt(ds, x, y)
+        if (Number.isFinite(ground)) volume += (l1 * a[2] + l2 * b[2] + l3 * c[2] - ground) * dx * dy
+        break
+      }
+    }
+  }
+  return volume
 }
 
 /** Boundary order for 4+ points: sort around the XY centroid so the outline never self-intersects. */
@@ -85,14 +138,11 @@ export function measureSelection(ds: PointCloudDataset, ids: number[]): Measurem
   switch (pts.length) {
     case 0:
       return { kind: 'none' }
-    case 1:
-      return {
-        kind: 'point',
-        x: pts[0][0],
-        y: pts[0][1],
-        z: pts[0][2],
-        terrainElevation: ds.terrainElevation[ids[0]],
-      }
+    case 1: {
+      const [x, y, z] = toReal(ds, pts[0])
+      const terrainElevation = ds.terrainElevation[ids[0]] + ds.model.displayOffset[2]
+      return { kind: 'point', x, y, z, terrainElevation, heightAboveTerrain: z - terrainElevation }
+    }
     case 2: {
       const [a, b] = pts
       const horizontal = distXY(a, b)
@@ -135,15 +185,23 @@ export function measureSelection(ds: PointCloudDataset, ids: number[]): Measurem
         planArea += p[0] * q[1] - q[0] * p[1]
       }
       for (let i = 1; i < ring.length - 1; i += 1) surfaceArea += triangleArea(ring[0], ring[i], ring[i + 1])
-      return { kind: 'polygon', perimeter, surfaceArea, planArea: Math.abs(planArea) / 2, order }
+      return {
+        kind: 'polygon',
+        perimeter,
+        surfaceArea,
+        planArea: Math.abs(planArea) / 2,
+        volume: volumeAboveTerrain(ds, ring),
+        order,
+      }
     }
     default: {
-      const centroid: Vec3 = [
+      const centroid = toReal(ds, [
         pts.reduce((s, p) => s + p[0], 0) / pts.length,
         pts.reduce((s, p) => s + p[1], 0) / pts.length,
         pts.reduce((s, p) => s + p[2], 0) / pts.length,
-      ]
-      const terrainMean = ids.reduce((s, id) => s + ds.terrainElevation[id], 0) / ids.length
+      ])
+      const terrainMean =
+        ids.reduce((s, id) => s + ds.terrainElevation[id], 0) / ids.length + ds.model.displayOffset[2]
       return { kind: 'region', count: pts.length, centroid, terrainMean }
     }
   }
@@ -155,12 +213,13 @@ export function elevationStats(ds: PointCloudDataset, ids: number[]): ElevationS
   let min = Infinity
   let sum = 0
   for (const id of ids) {
-    const z = ds.positions[id * 3 + 2]
+    const z = pointXYZ(ds, id)[2]
     if (z > max) max = z
     if (z < min) min = z
     sum += z
   }
-  return { max, min, avg: sum / ids.length, range: max - min }
+  const oz = ds.model.displayOffset[2]
+  return { max: max + oz, min: min + oz, avg: sum / ids.length + oz, range: max - min }
 }
 
 /* ---------------- camera framing (Z-up local coordinates) ---------------- */
@@ -169,11 +228,15 @@ export const CAMERA_FOV = 45
 
 const rad = (deg: number) => (deg * Math.PI) / 180
 
-/** Camera-space basis for a view with the given compass heading and tilt (both degrees). */
+/**
+ * Camera-space basis for a view with the given compass heading and tilt (degrees).
+ * Tilt 0–180 is the camera's polar angle around the target: 0 = straight down
+ * (top view), 90 = level, 180 = looking straight up from below.
+ */
 export function viewBasis(heading: number, tilt: number) {
   const h = rad(heading)
   const t = rad(tilt)
-  const forward: Vec3 = [Math.sin(h) * Math.cos(t), Math.cos(h) * Math.cos(t), -Math.sin(t)]
+  const forward: Vec3 = [Math.sin(h) * Math.sin(t), Math.cos(h) * Math.sin(t), -Math.cos(t)]
   let right = cross(forward, [0, 0, 1])
   if (length(right) < 1e-6) right = [Math.cos(h), -Math.sin(h), 0]
   const rl = length(right)
@@ -220,12 +283,58 @@ export function frameBounds(
 
 /* ---------------- neighbourhood preview ---------------- */
 
-/** Up to `limit` points within `radius` metres of point `id` (flat x,y,z,r,g,b, evenly thinned). */
+/* ---------------- focus / zoom range (model-size aware) ---------------- */
+
+/** Close-inspection stand-off from a focused structure's surface (metres). */
+export const INSPECTION_DISTANCE = 10
+
+/**
+ * Camera distance for focusing a structure of bounding-sphere `radius` whose
+ * full framing needs `frameDistance`: ≈10 m outside the structure where that
+ * still frames it; small objects get the (smaller) framing distance; the camera
+ * always stays outside the bounding sphere so it never starts inside geometry.
+ */
+export function inspectionDistance(radius: number, frameDistance: number) {
+  return Math.max(radius * 1.15, Math.min(frameDistance, radius + INSPECTION_DISTANCE))
+}
+
+/** Allowed camera distance range (FOV-45° framing distance) for a dataset, from its real size. */
+export function zoomLimits(ds: PointCloudDataset) {
+  const { min, max } = ds.focusBounds
+  const radius = Math.hypot(max[0] - min[0], max[1] - min[1], max[2] - min[2]) / 2 || 1
+  return {
+    min: Math.min(Math.max(radius * 0.0005, 0.02), 1),
+    max: Math.max(radius * 60, ds.model.boundingSphere.radius * 12),
+  }
+}
+
+/** World-local bounds of every point belonging to `objectId` (null if none). */
+export function objectBounds(ds: PointCloudDataset, objectId: number): { min: Vec3; max: Vec3 } | null {
+  const min: Vec3 = [Infinity, Infinity, Infinity]
+  const max: Vec3 = [-Infinity, -Infinity, -Infinity]
+  let found = 0
+  for (let i = 0; i < ds.count; i += 1) {
+    if (ds.objectIds[i] !== objectId) continue
+    const p = worldXYZ(ds, i)
+    for (let k = 0; k < 3; k += 1) {
+      if (p[k] < min[k]) min[k] = p[k]
+      if (p[k] > max[k]) max[k] = p[k]
+    }
+    found += 1
+  }
+  return found ? { min, max } : null
+}
+
+/* ---------------- neighbourhood preview ---------------- */
+
+/** Up to `limit` points within `radius` metres of point `id` (flat world-local x,y,z,r,g,b, evenly thinned). */
 export function neighbourhood(ds: PointCloudDataset, id: number, radius: number, limit = 1400) {
+  // Search in the stored frame: rotation + uniform scale keep distances (÷ unitsToMeters).
   const cx = ds.positions[id * 3]
   const cy = ds.positions[id * 3 + 1]
   const cz = ds.positions[id * 3 + 2]
   const hits: number[] = []
+  radius /= ds.model.unitsToMeters
   const r2 = radius * radius
   const p = ds.positions
   for (let i = 0; i < ds.count; i += 1) {
@@ -240,9 +349,9 @@ export function neighbourhood(ds: PointCloudDataset, id: number, radius: number,
   const out: number[] = []
   for (let k = 0; k < hits.length; k += step) {
     const i = hits[Math.floor(k)]
-    out.push(p[i * 3], p[i * 3 + 1], p[i * 3 + 2], ds.colors[i * 4], ds.colors[i * 4 + 1], ds.colors[i * 4 + 2])
+    out.push(...worldXYZ(ds, i), ds.colors[i * 4], ds.colors[i * 4 + 1], ds.colors[i * 4 + 2])
   }
-  return { data: new Float32Array(out), center: [cx, cy, cz] as Vec3, total: hits.length }
+  return { data: new Float32Array(out), center: worldXYZ(ds, id), total: hits.length }
 }
 
 /* ---------------- formatting ---------------- */
@@ -253,6 +362,15 @@ export function fmt(value: number, digits = 2): string {
 }
 
 export const fmtMetres = (value: number, digits = 2) => `${fmt(value, digits)} m`
+
+/** Compact distance for tight read-outs: 35cm · 4.2m · 120m · 3.4km. */
+export function fmtDistance(metres: number): string {
+  if (!Number.isFinite(metres)) return '—'
+  if (metres < 1) return `${Math.round(metres * 100)}cm`
+  if (metres < 10) return `${metres.toFixed(1)}m`
+  if (metres < 1000) return `${Math.round(metres)}m`
+  return `${(metres / 1000).toFixed(metres < 10_000 ? 1 : 0)}km`
+}
 
 export function fmtCount(value: number): string {
   if (value >= 1e6) return `${(value / 1e6).toFixed(1)}M`

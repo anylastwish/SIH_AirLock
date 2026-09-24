@@ -24,6 +24,9 @@ venv/
 # Local-only large source models (> GitHub's 100 MB file limit).
 # The deployable demo model lives in application/frontend/public/models/.
 context/Models/**/*.glb
+# Raw reconstructions often have no extension (e.g. sarang_dense_cloud, 496 MB) — keep all local models out.
+context/Models/**/*
+!context/Models/**/
 
 # Logs
 *.log

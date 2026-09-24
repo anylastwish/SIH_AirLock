@@ -16,20 +16,25 @@ interface ModelFormatInfo {
   /** Main Application view that should open for this format. */
   view: AppView
   /** Loader available in the prototype viewer. `null` = accepted, not renderable yet. */
-  loader: 'gltf' | 'ply' | null
+  loader: 'gltf' | 'ply' | 'obj' | null
 }
 
 export const MODEL_FORMATS: Record<ModelFormat, ModelFormatInfo> = {
   glb: { label: 'GLB', view: 'cesium', loader: 'gltf' },
   gltf: { label: 'GLTF', view: 'cesium', loader: 'gltf' },
-  obj: { label: 'OBJ', view: 'cesium', loader: null },
+  obj: { label: 'OBJ', view: 'cesium', loader: 'obj' },
   fbx: { label: 'FBX', view: 'cesium', loader: null },
   las: { label: 'LAS', view: 'pointcloud', loader: null },
   ply: { label: 'PLY', view: 'pointcloud', loader: 'ply' },
 }
 
-/** Files that ride along with a primary model file (materials, buffers, textures). */
+/**
+ * Files that ride along with a primary model file (materials, buffers, textures).
+ * `json` = the OPTIONAL `<model>.metadata.json` from the ML pipeline — never
+ * required; used automatically when present (lib/modelMetadata.ts).
+ */
 export const COMPANION_EXTENSIONS = [
+  'json',
   'mtl',
   'bin',
   'png',
@@ -66,6 +71,42 @@ export function formatBytes(bytes: number): string {
 
 export function isModelFormat(ext: string): ext is ModelFormat {
   return ext in MODEL_FORMATS
+}
+
+/**
+ * Identify a model file from its first bytes, for files whose name has no (or
+ * a wrong) extension — e.g. `sarang_dense_cloud` exported without `.ply`.
+ * Magic numbers: `ply` (PLY), `glTF` (GLB), `LASF` (LAS/LAZ), `Kaydara FBX
+ * Binary` (FBX); text heuristics for glTF JSON and OBJ. Null = not a model.
+ */
+export async function sniffModelFormat(file: File): Promise<ModelFormat | null> {
+  let head: Uint8Array
+  try {
+    head = new Uint8Array(await file.slice(0, 4096).arrayBuffer())
+  } catch {
+    return null
+  }
+  const text = new TextDecoder('latin1').decode(head)
+  if (/^ply\r?\n/.test(text)) return 'ply'
+  if (text.startsWith('glTF')) return 'glb'
+  if (text.startsWith('LASF')) return 'las'
+  if (text.startsWith('Kaydara FBX Binary')) return 'fbx'
+  const trimmed = text.trimStart()
+  if (trimmed.startsWith('{') && /"asset"\s*:/.test(text)) return 'gltf'
+  if (/^; FBX \d/m.test(text)) return 'fbx'
+  // OBJ: plain text with vertex / face records.
+  const printable = head.every((b) => b === 9 || b === 10 || b === 13 || (b >= 32 && b < 127))
+  if (printable && /^v\s+-?[\d.]/m.test(text) && /^(f|p|l|vn|vt|o|g|mtllib|usemtl)\s/m.test(text)) return 'obj'
+  return null
+}
+
+/**
+ * Give an extension-less (or mis-named) model file the extension of its
+ * detected format, so the rest of the pipeline (classification, loaders,
+ * companion lookup) works unchanged. The new File references the same data (no copy).
+ */
+export function withModelExtension(file: File, format: ModelFormat): File {
+  return new File([file], `${file.name}.${format}`, { type: file.type, lastModified: file.lastModified })
 }
 
 export interface ModelSelection {

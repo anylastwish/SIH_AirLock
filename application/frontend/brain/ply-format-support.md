@@ -121,21 +121,51 @@ Reuses the existing states end-to-end — no new UI:
   use — black viewport, glass error badge, panels sit in their empty/disabled
   state, nothing crashes.
 
+## Fix: large / extension-less PLY (`sarang_dense_cloud`, Sep 2026)
+
+`context/Models/Point Cloud Model/sarang_dense_cloud` — binary little-endian PLY, 18 382 283 vertices,
+`x y z nx ny nz red green blue` (27 bytes each), 496 MB, **no file extension**. Two independent problems:
+
+1. **"Not supported and skipped"** — the Visualizer accepted files only by extension (`extensionOf(name)`
+   was `''`). Fix: `sniffModelFormat(file)` (`lib/formats.ts`) reads the first 4 KB of any file with an
+   unknown extension and identifies it by content (`ply` → PLY, `glTF` → GLB, `LASF` → LAS, Kaydara → FBX,
+   glTF JSON `"asset"`, OBJ `v`/`f` records). A detected file is re-wrapped as `<name>.<ext>`
+   (`withModelExtension`, same data, no copy), so classification / loaders / companion lookup work
+   unchanged. The panel shows "Format detected from file content: sarang_dense_cloud (PLY)"; files that
+   are not models are still skipped.
+2. **Would freeze / crash the tab once accepted** — `PLYLoader` pushes every property of every vertex into
+   plain JS arrays: measured 40 s and 1.66 GB heap for this file. Fix: `parseBinaryPlyPoints`
+   (`lib/pointCloud.ts`) — for binary (LE/BE) point clouds whose first element is `vertex` with scalar
+   properties and no faces, read straight from the ArrayBuffer with a `DataView` into typed arrays,
+   keeping every `stride`-th vertex (≤ 6.5 M, same cap as before). Handles any scalar types, normals
+   (`nx`/`normal_x`), colours (uchar as-is, ushort ÷257, float 0–1 ×255), classification-like
+   properties. ASCII, faces or unusual layouts still fall back to `PLYLoader`. `dataset.source` reports
+   the real `sourcePoints` (18.38 M) and total stride (3). The header parser now records format, all
+   elements/properties and the exact header byte length; a file not starting with `ply`/`end_header`
+   gives a clear error.
+   - Colours in the fast path are the file's raw sRGB bytes (like GLB point colours). `PLYLoader`
+     converted them to linear, so fast-path PLYs look slightly brighter/truer than before.
+
+Result: 6 127 428 of 18 382 283 points in ≈ 13 s (Node, incl. analysis) with ~24 MB extra heap. The
+file is in an arbitrary reconstruction frame (ground ≈ 66° off); the automatic terrain alignment
+(`model-scaling-and-camera.md`) levels it (113.5° correction, plane-fit inliers 100 %, normals vote) →
+480 × 602 m survey with 19 m relief. Scale: no units in the file → "Scale: Unknown". Verified through the
+real upload UI in headless Chrome (extension-less file → detected → Open Model → ready, side view level).
+The radiating streaks in the default view are depth noise along camera rays in this dense cloud itself.
+
 ## Limitations / assumptions (carried into `point-cloud-view.md`'s proxy list)
 
-- **No axis-convention detection.** PLY carries no up-axis metadata (unlike
-  glTF, which mandates Y-up — the reason the GLB path swaps axes). PLY
-  vertices are read as-is and pushed through the *same* Y-up→Z-up swap as
-  GLB. Real-world point-cloud PLYs (COLMAP, RealityCapture, CloudCompare,
-  Open3D) are exported with all kinds of conventions, so a PLY may appear
-  rotated 90° depending on the source tool. Fix: expose axis convention as an
-  upload option, or auto-detect from a bounding-box heuristic.
-- **Units assumed metres.** Same assumption the GLB path makes for "generic"
-  scenes (only relaxed there via the Sketchfab-specific node it detects);
-  `AdapterOptions.unitsToMeters` can override per-load if needed later.
-   *(Placeholders like elevation range or the scale bar will simply be wrong
-  if a PLY is actually in centimetres/feet/etc. — the data model doesn't
-  currently record source units, so nothing downstream can compensate.)*
+- ~~No axis-convention detection~~ → **resolved (Sep 2026, `model-scaling-and-camera.md`).** PLY is no
+  longer pushed through the glTF Y-up→Z-up swap: it is read as nominal Z-up, then an explicit `comment up …`
+  / companion metadata wins, otherwise the geometry estimator detects the up axis (Y-up exports, tilted or
+  inverted ML reconstructions) from ground classes, normals and a robust ground-plane fit.
+- ~~Units assumed metres~~ → **resolved.** Units come from `comment units cm` / `comment scale 0.01` /
+  `comment airlock {json}` / companion `.metadata.json`; without any, scale is recorded as **Unknown**
+  (status strip "Scale: Unknown"), 1 unit is displayed as 1 m and is never guessed from the size.
+- **New:** the header is parsed for metadata comments and a classification-like vertex property
+  (`classification`, `scalar_Classification`, `class`, `label`, `semantic`, …), mapped to semantic classes
+  (ASPRS codes by default) and used as the ground reference for terrain + alignment. The file is now read
+  once as an ArrayBuffer (`FileLoader`) and parsed with `PLYLoader.parse`.
 - **Normals only on the point-copy path.** A mesh-typed PLY (has `face`
   elements) goes through the existing barycentric area-sampling — which
   already doesn't use normals for GLB mesh assets either — so PLY mesh
@@ -148,8 +178,8 @@ Reuses the existing states end-to-end — no new UI:
   correctly as a dense point cloud of the expanded vertices (every point has
   a valid position + colour) — it just skips triangle-surface sampling. Not
   seen in any modern export tool tested; documented rather than special-cased.
-- **No PLY texture/UV sampling** — only per-vertex colour, matching how the
-  GLB mesh-fallback path already works (no texture sampling there either).
+- **No PLY texture/UV sampling** — only per-vertex colour. (Mesh sampling now reads diffuse textures for
+  OBJ/MTL and textured glTF materials; PLY meshes have no material texture to read.)
 - **`source.sourcePoints`** for a mesh-typed PLY reports the sampled count
   (e.g. 400 000), not the file's actual vertex count — this mirrors a
   pre-existing GLB mesh-fallback quirk (the field is debug/documentation
@@ -167,10 +197,13 @@ Follow the same shape:
    the shared post-processing (extents/terrain/confidence/semantic) lives in
    `datasetFromObject3D` today but only needs `positions`/`colors`/`n`, so it
    could be factored out further if a second hand-built adapter shows up.
-3. Add one `case` to the `loadPointCloud` switch in `lib/pointCloud.ts`.
-4. Flip that format's `loader` in `lib/formats.ts` from `null` to something
+3. Pass the format's metadata as candidates (`metadata: [...embedded, ...ctx.metadata, formatConvention]`,
+   see `model-scaling-and-camera.md`) — e.g. a LAS loader adds its header scale/offset/CRS; OBJ (added
+   Sep 2026, `loadFromOBJ`) is the reference for a mesh format with companions (MTL, textures).
+4. Add one `case` to the `loadPointCloud` switch in `lib/pointCloud.ts`.
+5. Flip that format's `loader` in `lib/formats.ts` from `null` to something
    truthy (widen the `loader` union type).
-5. Nothing else — `PointCloudView`'s load gate, the renderer, both panels, the
+6. Nothing else — `PointCloudView`'s load gate, the renderer, both panels, the
    toolbar and the store are already format-agnostic.
 
 ## Testing done
