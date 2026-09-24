@@ -1,4 +1,5 @@
 import {
+  Crop as CropIcon,
   Crosshair,
   FlipHorizontal2,
   FlipVertical2,
@@ -8,14 +9,12 @@ import {
   Maximize,
   Minimize,
   MousePointer2,
-  Redo2,
-  Undo2,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { fmtDistance } from '../../lib/pointCloudMath'
-import { pc, usePC, type FlipAxis } from '../../lib/pointCloudStore'
-import { ACTIVE_FILL, DISABLED, FOCUS_RING, HOVER, HUD_SURFACE } from './ui'
+import { isCropActive, pc, usePC, type FlipAxis } from '../../lib/pointCloudStore'
+import { ACTIVE_BLUE, DISABLED, FOCUS_RING, HOVER, HUD_SURFACE } from './ui'
 
 /**
  * Bottom floating toolbar — common to the Cesium, Semantic and Point Cloud
@@ -33,7 +32,8 @@ import { ACTIVE_FILL, DISABLED, FOCUS_RING, HOVER, HUD_SURFACE } from './ui'
  *   Ruler          start a new multi-point measurement
  *   Layers         highlight the Layers panel section
  *   Path           toggle the flight-path layer
- *   Undo / Redo    view + selection history
+ *   Crop           Crop Mode: X/Y/Z crop controls (left panel) + crop box; visualization only
+ *                  (replaced Undo / Redo — history stays on Ctrl+Z / Ctrl+Y, see PointCloudView)
  *   Rotations      show / hide the Tilt & Heading panel
  *   − 120m +       zoom by real camera distance to the target (range from the model's
  *                  size, no fixed % cap); clicking the distance = default survey view
@@ -129,7 +129,7 @@ function FlipControl({ disabled }: { disabled: boolean }) {
               aria-checked={flip[axis]}
               onClick={() => pc.toggleFlip(axis)}
               className={`${Q} flex h-[23px] items-center gap-[6px] rounded-[5px] border px-[6px] text-left ${FOCUS_RING} ${
-                flip[axis] ? ACTIVE_FILL : `border-hud-border bg-hud-slot ${HOVER}`
+                flip[axis] ? ACTIVE_BLUE : `border-hud-border bg-hud-slot ${HOVER}`
               }`}
             >
               <Icon {...GLYPH} size={14} />
@@ -170,7 +170,7 @@ function Slot({
       disabled={disabled}
       onClick={onClick}
       className={`absolute top-[2px] flex h-[23px] w-[23px] items-center justify-center rounded-[5px] border ${FOCUS_RING} ${
-        disabled ? `${DISABLED} border-hud-border bg-hud-slot` : active ? ACTIVE_FILL : `border-hud-border bg-hud-slot ${HOVER}`
+        disabled ? `${DISABLED} border-hud-border bg-hud-slot` : active ? ACTIVE_BLUE : `border-hud-border bg-hud-slot ${HOVER}`
       }`}
       style={{ left }}
     >
@@ -194,6 +194,8 @@ function Divider({ left }: { left: number }) {
 
 const Q = 'font-jersey10 text-[10px] leading-[11px] text-white'
 const CHIP = `${HUD_SURFACE} ${Q} absolute flex items-center justify-center ${FOCUS_RING}`
+/** Active round chip (2D / 3D): CHIP already sets the glass bg/border, so the blue overrides it. */
+const CHIP_ACTIVE = '!border-[#0083D5] !bg-[#0083D5] hover:!bg-[#1592e6]'
 
 function toggleFullscreen() {
   if (document.fullscreenElement) void document.exitFullscreen()
@@ -205,8 +207,8 @@ export default function BottomToolbar() {
   const locked = usePC((s) => s.navLocked)
   const multi = usePC((s) => s.selectionMode === 'multi')
   const flightPath = usePC((s) => s.layers.flightPath)
-  const canUndo = usePC((s) => s.canUndo)
-  const canRedo = usePC((s) => s.canRedo)
+  const cropOpen = usePC((s) => s.cropOpen)
+  const cropActive = usePC(isCropActive)
   const rotationsOpen = usePC((s) => s.rotationsOpen)
   const viewMode = usePC((s) => s.viewMode)
   const fullscreen = usePC((s) => s.fullscreen)
@@ -270,15 +272,22 @@ export default function BottomToolbar() {
         </Slot>
       </Group>
 
-      {/* Undo / redo */}
-      <Group left={293} width={69}>
-        <Slot left={6} title="Undo" disabled={!canUndo} onClick={pc.undo}>
-          <Undo2 {...GLYPH} size={14} />
-        </Slot>
-        <Slot left={39} title="Redo" disabled={!canRedo} onClick={pc.redo}>
-          <Redo2 {...GLYPH} size={14} />
-        </Slot>
-      </Group>
+      {/* Crop (replaced Undo / Redo): the whole group box is the button — blue while the Crop panel is open */}
+      <button
+        type="button"
+        title={cropOpen ? 'Close crop' : cropActive ? 'Crop — part of the model is hidden' : 'Crop — limit the visible region'}
+        aria-label="Crop"
+        aria-pressed={cropOpen}
+        disabled={!ready}
+        onClick={pc.toggleCropMode}
+        className={`absolute left-[293px] top-[10px] flex h-[29px] w-[69px] items-center justify-center rounded-[5px] border backdrop-blur-[7.8px] ${FOCUS_RING} ${
+          !ready ? `${DISABLED} border-hud-border bg-hud` : cropOpen ? ACTIVE_BLUE : `border-hud-border bg-hud ${HOVER}`
+        }`}
+      >
+        <CropIcon {...GLYPH} size={16} />
+        {/* A crop hidden behind the closed panel is still signalled (not blue: blue = open). */}
+        {cropActive && !cropOpen && <span aria-hidden className="absolute right-[5px] top-[4px] h-[4px] w-[4px] rounded-full bg-white/80" />}
+      </button>
 
       {/* Current interaction mode read-out */}
       <Group left={371} width={78}>
@@ -297,7 +306,7 @@ export default function BottomToolbar() {
           title={rotationsOpen ? 'Hide tilt & heading' : 'Show tilt & heading'}
           onClick={pc.toggleRotations}
           className={`${Q} absolute left-[5px] top-[2px] flex h-[23px] w-[57px] items-center justify-center rounded-[5px] ${FOCUS_RING} ${
-            rotationsOpen ? 'bg-white/[0.31] hover:bg-white/[0.4]' : `border border-hud-border bg-hud-slot ${HOVER}`
+            rotationsOpen ? `border ${ACTIVE_BLUE}` : `border border-hud-border bg-hud-slot ${HOVER}`
           }`}
         >
           Rotations
@@ -327,7 +336,7 @@ export default function BottomToolbar() {
           aria-pressed={viewMode === '2d'}
           disabled={!ready}
           onClick={() => pc.setViewMode('2d')}
-          className={`${CHIP} left-[145px] top-[2px] h-[23px] w-[23px] !rounded-full ${viewMode === '2d' ? `${ACTIVE_FILL} !bg-white/[0.28]` : HOVER}`}
+          className={`${CHIP} left-[145px] top-[2px] h-[23px] w-[23px] !rounded-full ${viewMode === '2d' ? CHIP_ACTIVE : HOVER}`}
         >
           2D
         </button>
@@ -337,12 +346,12 @@ export default function BottomToolbar() {
           aria-pressed={viewMode === '3d'}
           disabled={!ready}
           onClick={() => pc.setViewMode('3d')}
-          className={`${CHIP} left-[175px] top-[2px] h-[23px] w-[23px] !rounded-full ${viewMode === '3d' ? `${ACTIVE_FILL} !bg-white/[0.28]` : HOVER}`}
+          className={`${CHIP} left-[175px] top-[2px] h-[23px] w-[23px] !rounded-full ${viewMode === '3d' ? CHIP_ACTIVE : HOVER}`}
         >
           3D
         </button>
 
-        <Slot left={210} title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'} onClick={toggleFullscreen}>
+        <Slot left={210} title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'} active={fullscreen} pressed={fullscreen} onClick={toggleFullscreen}>
           {fullscreen ? (
             <Minimize size={15} strokeWidth={2} color="#fff" />
           ) : (

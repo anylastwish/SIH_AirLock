@@ -47,8 +47,9 @@ upload model ─► loader collects geometry + metadata candidates (embedded · 
 
 - The original data is **never rewritten**: `positions` are the source coordinates (only re-based on a
   constant), normals stay native. The model transform is applied at **scene level** — the viewer puts the
-  points in an `aligned` group whose matrix is `model.linear`; the shader gets world Z via `uZRow`
-  (3rd matrix row) for the elevation filter / colouring; the normal-shading light is rotated into the
+  points in an `aligned` group whose matrix is `model.linear`; the shader computes world-local
+  `w = uLinear * position` (was `uZRow`, the 3rd row, before the Crop feature) for the crop test and the
+  elevation filter / colouring; the normal-shading light is rotated into the
   native frame (`Rᵀ·L`).
 - Transform order (conceptual pipeline): original → unit/scale → orientation (metadata / format axis
   convention) → terrain alignment (geometry correction, about the model centre) → translation / origin

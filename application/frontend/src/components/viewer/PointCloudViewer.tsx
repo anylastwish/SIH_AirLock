@@ -44,6 +44,10 @@ import {
  * (`dataset.model.linear` = unit scale · orientation / terrain alignment) — the
  * transform is applied at scene level, never baked into the data.
  *
+ * Crop (visualization only): `uCropMin/uCropMax/uCropOn` are one more test in
+ * the same visibility expression as the filters (and in CPU picking); a crop
+ * change is a uniform write, never a data rebuild.
+ *
  * Clipping: near / far are recomputed from the model's bounding sphere every
  * rendered frame (so wheel zoom can never push the model past the far plane),
  * and zoom limits come from the model's real size (`zoomLimits`).
@@ -63,7 +67,10 @@ uniform vec2 uZDomain;
 uniform vec2 uConfFilter;
 uniform int uClassMask;
 uniform vec3 uClassColors[6];
-uniform vec3 uZRow;      // 3rd row of the model transform: world-local z = dot(uZRow, position)
+uniform mat3 uLinear;    // model transform: world-local = uLinear * position (native, re-based)
+uniform vec3 uCropMin;   // visualization crop box, world-local
+uniform vec3 uCropMax;
+uniform float uCropOn;
 varying vec3 vColor;
 
 // Only compiled in when the dataset actually carries per-point normals (see
@@ -111,8 +118,12 @@ vec3 confidenceRamp(float t) {
 
 void main() {
   int cls = int(aMeta.x + 0.5);
-  float z = dot(uZRow, position);
+  vec3 w = uLinear * position;
+  float z = w.z;
+  // Crop AND elevation AND confidence AND class (+ density / points layer) — all must pass.
+  bool inCrop = uCropOn < 0.5 || (all(greaterThanEqual(w, uCropMin)) && all(lessThanEqual(w, uCropMax)));
   bool visible = uPointsOn > 0.5
+    && inCrop
     && hash01(uint(gl_VertexID)) < uDensity
     && z >= uZFilter.x && z <= uZFilter.y
     && aColor.a >= uConfFilter.x && aColor.a <= uConfFilter.y
@@ -246,7 +257,10 @@ function createViewer(container: HTMLElement, ds: PointCloudDataset): () => void
     uConfFilter: { value: new THREE.Vector2(0, 1) },
     uClassMask: { value: 63 },
     uClassColors: { value: SEMANTIC_CLASSES.map((c) => new THREE.Vector3(...hexToRgb(c.color))) },
-    uZRow: { value: new THREE.Vector3(L[6], L[7], L[8]) },
+    uLinear: { value: new THREE.Matrix3().set(L[0], L[1], L[2], L[3], L[4], L[5], L[6], L[7], L[8]) },
+    uCropMin: { value: new THREE.Vector3(...initial.crop.min) },
+    uCropMax: { value: new THREE.Vector3(...initial.crop.max) },
+    uCropOn: { value: initial.crop.enabled ? 1 : 0 },
     // World light direction rotated into the native frame of the normals (Rᵀ · light).
     uLightDir: {
       value: new THREE.Vector3(0.35, 0.55, 0.75)
@@ -291,6 +305,18 @@ function createViewer(container: HTMLElement, ds: PointCloudDataset): () => void
   )
   flightPath.computeLineDistances()
   model.add(boundary, flightPath)
+
+  /* ---- crop box: subtle outline of the visible region while Crop Mode is open ---- */
+  const unitBox = new THREE.BoxGeometry(1, 1, 1)
+  const cropBoxGeometry = new THREE.EdgesGeometry(unitBox) // unit cube; scaled / moved to the crop
+  unitBox.dispose()
+  const cropBox = new THREE.LineSegments(
+    cropBoxGeometry,
+    new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, depthTest: false, depthWrite: false }),
+  )
+  cropBox.frustumCulled = false
+  cropBox.renderOrder = 8
+  model.add(cropBox)
 
   /* ---- selection markers + measurement overlay (drawn on top) ---- */
   const markPositions = new Float32Array(MAX_SELECTED * 3)
@@ -534,6 +560,18 @@ function createViewer(container: HTMLElement, ds: PointCloudDataset): () => void
     flightPath.visible = s.layers.flightPath
   }
 
+  /** Crop → two vec3 uniforms (no data upload) + the outline box. */
+  const syncCrop = (s: PointCloudState) => {
+    const { enabled, min, max } = s.crop
+    uniforms.uCropOn.value = enabled ? 1 : 0
+    uniforms.uCropMin.value.set(...min)
+    uniforms.uCropMax.value.set(...max)
+    cropBox.visible = s.cropOpen && enabled
+    const eps = 1e-3
+    cropBox.scale.set(Math.max(max[0] - min[0], eps), Math.max(max[1] - min[1], eps), Math.max(max[2] - min[2], eps))
+    cropBox.position.set((min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2)
+  }
+
   const updateOverlay = (s: PointCloudState) => {
     const ids = s.selectedIds.slice(0, MAX_SELECTED)
     const pts = ids.map((id) => pointXYZ(ds, id))
@@ -598,6 +636,9 @@ function createViewer(container: HTMLElement, ds: PointCloudDataset): () => void
       .multiply(points.matrixWorld).elements
     const [zr0, zr1, zr2] = [L[6], L[7], L[8]]
     const s = getState()
+    // Same crop test as the shader: cropped-out points can't be picked.
+    const crop = s.crop.enabled ? s.crop : null
+    const [c0, c1] = crop ? [crop.min, crop.max] : [[0, 0, 0], [0, 0, 0]]
     const tolerance = Math.max(7, s.pointSize * 2 + 4)
     const tol2 = tolerance * tolerance
     const mask = classMask(s)
@@ -616,6 +657,13 @@ function createViewer(container: HTMLElement, ds: PointCloudDataset): () => void
       const z = pos[i * 3 + 2]
       const worldZ = zr0 * x + zr1 * y + zr2 * z
       if (worldZ < zMin || worldZ > zMax) continue
+      if (crop) {
+        if (worldZ < c0[2] || worldZ > c1[2]) continue
+        const worldX = L[0] * x + L[1] * y + L[2] * z
+        if (worldX < c0[0] || worldX > c1[0]) continue
+        const worldY = L[3] * x + L[4] * y + L[5] * z
+        if (worldY < c0[1] || worldY > c1[1]) continue
+      }
       if (((mask >> meta[i * 4]) & 1) === 0) continue
       const conf = col[i * 4 + 3]
       if (conf < cMin || conf > cMax) continue
@@ -663,6 +711,7 @@ function createViewer(container: HTMLElement, ds: PointCloudDataset): () => void
   /* ---- store subscription ---- */
   let prev = initial
   syncUniforms(initial)
+  syncCrop(initial)
   applyFlip(initial)
   configureControls(initial)
   applyPose(initial.camera, initial.viewMode === '2d' ? FOV_2D : CAMERA_FOV)
@@ -680,6 +729,10 @@ function createViewer(container: HTMLElement, ds: PointCloudDataset): () => void
       s.classes !== prev.classes
     ) {
       syncUniforms(s)
+      needsRender = true
+    }
+    if (s.crop !== prev.crop || s.cropOpen !== prev.cropOpen) {
+      syncCrop(s)
       needsRender = true
     }
     if (s.flip !== prev.flip) applyFlip(s)
@@ -755,6 +808,8 @@ function createViewer(container: HTMLElement, ds: PointCloudDataset): () => void
     fillGeometry.dispose()
     boundary.geometry.dispose()
     flightPath.geometry.dispose()
+    cropBoxGeometry.dispose()
+    ;(cropBox.material as THREE.Material).dispose()
     renderer.dispose()
     canvas.remove()
     labelLayer.remove()

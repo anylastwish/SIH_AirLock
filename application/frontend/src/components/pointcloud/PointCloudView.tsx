@@ -7,6 +7,7 @@ import type { ActiveModel } from '../../lib/session'
 import ModelStatusBadge from '../viewer/ModelStatusBadge'
 import PointCloudViewer from '../viewer/PointCloudViewer'
 import BottomToolbar from './BottomToolbar'
+import CropControl from './CropControl'
 import LeftPanel from './LeftPanel'
 import RightPanel from './RightPanel'
 import { CopyrightStatus, LocationStatus } from './StatusBars'
@@ -68,6 +69,14 @@ export default function PointCloudView({ model }: PointCloudViewProps) {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null
       if (event.key === 'Escape' && !document.fullscreenElement && target?.tagName !== 'INPUT') pc.clearSelection()
+      // Undo / redo moved from the toolbar (now Crop) to the standard shortcuts.
+      if ((event.ctrlKey || event.metaKey) && target?.tagName !== 'INPUT' && !event.altKey) {
+        const key = event.key.toLowerCase()
+        if (key === 'z' && !event.shiftKey) pc.undo()
+        else if (key === 'y' || (key === 'z' && event.shiftKey)) pc.redo()
+        else return
+        event.preventDefault()
+      }
     }
     document.addEventListener('fullscreenchange', onFullscreen)
     window.addEventListener('keydown', onKey)
@@ -89,6 +98,7 @@ export default function PointCloudView({ model }: PointCloudViewProps) {
         <TopBar />
         <LeftPanel />
         <RightPanel />
+        <CropControl />
         <TiltHeadingControl />
         <BottomToolbar />
         <CopyrightStatus />

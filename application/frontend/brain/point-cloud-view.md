@@ -28,7 +28,7 @@ components/viewer/
                            overlays, camera <-> store sync, on-demand render loop
   ModelStatusBadge.tsx     load progress / error badge (reads store)
 components/pointcloud/     HUD (unchanged layout): TopBar, LeftPanel, RightPanel, BottomToolbar,
-                           TiltHeadingControl, StatusBars, PointCloudView (scaled stage), ui.tsx (primitives)
+                           TiltHeadingControl (Rotations), CropControl (Crop), StatusBars, PointCloudView (scaled stage), ui.tsx (primitives)
 ```
 `viewer/ModelViewer.tsx` (Phase-1 stand-in) was **deleted**; `PointCloudViewer` replaces it.
 
@@ -79,7 +79,7 @@ notes below where they differ — marked "→ updated").**
 ## Renderer (`viewer/PointCloudViewer.tsx`)
 - **One `THREE.Points`**; per-point work happens in the vertex shader from uniforms, so changing layers,
   density, size, filters or colour mode never rebuilds or re-uploads point data:
-  visible = points-layer ∧ `hash01(gl_VertexID) < density` ∧ z ∈ elevation range ∧ confidence ∈ range ∧
+  visible = points-layer ∧ `hash01(gl_VertexID) < density` ∧ **inside crop box** ∧ z ∈ elevation range ∧ confidence ∈ range ∧
   class allowed (bitmask; Terrain class also requires the Terrain layer). Hidden points are moved outside clip space.
 - **Density** uses a deterministic integer hash of the point ID (`hash01`, identical in GLSL and in
   `pointCloudMath.ts`) → nested, non-jumping subsets; original data untouched.
@@ -112,11 +112,13 @@ notes below where they differ — marked "→ updated").**
 ## State (`lib/pointCloudStore.ts`)
 One store holds: dataset + load status, layers, render mode, density, point size, elevation range, class
 flags (+ search query), confidence range, selection mode/tool/lock, `selectedIds`/`activeId`, camera
-`{target, distance, heading, tilt}`, view mode (2d/3d), Tilt/Heading panel open, fullscreen, canUndo/canRedo.
+`{target, distance, heading, tilt}`, view mode (2d/3d), `rotationsOpen` / `cropOpen` (floating panels, both
+closed by default), `crop`, fullscreen, canUndo/canRedo.
 - **Heading** = compass direction the camera looks towards (0 = north); **tilt** (→ updated) = camera polar
   angle 0–180° (0 top view, 90 level, 180 from below; was "0–90° below the horizon"); `distance` = FOV-45°
   framing distance, clamped by `zoomLimits`. The model never rotates.
-- **Undo/redo** (max 100): snapshots of layers, mode, density, size, elevation, classes, confidence,
+- **Undo/redo** (max 100; toolbar buttons replaced by Crop in Sep 2026 — now Ctrl/⌘+Z, Ctrl+Y / Ctrl+Shift+Z;
+  the history engine and `pc.commit()` calls are unchanged): snapshots of layers, mode, density, size, elevation, classes, confidence,
   selection, camera, view mode. Discrete actions commit immediately; sliders commit **on release**; mouse
   camera moves commit on OrbitControls `end`. Chrome state (tool, lock, panel open, fullscreen) is not undoable.
 - **Default Survey View** is computed from the dataset's 1–99 % bounds, fitted into the free central area
@@ -144,17 +146,89 @@ flags (+ search query), confidence range, selection mode/tool/lock, `selectedIds
 | Measurements | all in normalised world metres (→ `model-scaling-and-camera.md`). 1 pt: X/Y/Z/terrain elev/**height above terrain** · 2 pts: 3D, horizontal, vertical, slope (°, %) · 3 pts: 3D area, perimeter, horizontal side lengths, plane slope, 3D distances · 4 pts: 3D perimeter, 3D surface (fan triangulation), plan area, **Volume above terrain only with a real base surface (ground classes / supplied DTM), else N/A** · 5+: centroid X/Y/Z, mean terrain elevation. Terrain values are marked *(estimated)* without a real DTM |
 | Terrain Statistics | max/min/mean/range of selected point Z |
 | Actions | Clear Selection · Restart Selection (clear + select tool) |
-| Tilt / Heading | sliders drive the camera and follow mouse orbits; value shown next to the label; close (X) hides, **Rotations** reopens. Tilt 0–180° (0 top view · 90 level · 180 from below); Heading 0–360°. Dragging Tilt in 2D switches back to 3D. |
-| Toolbar | Select · Pan (drag pans) · Lock (freezes navigation, picking still works) · Focus (selection, or the Default Survey View when empty) · **Flip** (glass menu: Flip horizontal / Flip vertical, each a toggle; button highlighted while any flip is on — replaced the old Single⇄Multi Pointer toggle, which remains in the Left panel Selection dropdown; the Ruler still switches to Multi) · Ruler (new multi-point measurement) · Layers (pulses Layers section) · Path (toggle flight path) · Undo/Redo (disabled when empty) · centre box = current mode read-out · Rotations · − / **camera distance, e.g. `234m` (click = reset to Default Survey View; was zoom %)** / + · 2D · 3D · Fullscreen (Fullscreen API, Esc/exit synced). Focus: one point → its object at ≈10 m stand-off, several → their extent |
+| Rotations (Tilt / Heading) | floating panel above the central control panel, **closed by default**; toolbar **Rotations** (blue while open) or the panel's X toggles it. Sliders drive the camera and follow mouse orbits; value shown next to the label. Tilt 0–180° (0 top view · 90 level · 180 from below); Heading 0–360°. Dragging Tilt in 2D switches back to 3D. |
+| Toolbar | Select · Pan (drag pans) · Lock (freezes navigation, picking still works) · Focus (selection, or the Default Survey View when empty) · **Flip** (glass menu: Flip horizontal / Flip vertical, each a toggle; button highlighted while any flip is on — replaced the old Single⇄Multi Pointer toggle, which remains in the Left panel Selection dropdown; the Ruler still switches to Multi) · Ruler (new multi-point measurement) · Layers (pulses Layers section) · Path (toggle flight path) · **Crop** (replaced Undo/Redo; the whole group box is the button, blue while the Crop panel is open — see "Crop" below) · centre box = current mode read-out · Rotations · − / **camera distance, e.g. `234m` (click = reset to Default Survey View; was zoom %)** / + · 2D · 3D · Fullscreen (Fullscreen API, Esc/exit synced). Focus: one point → its object at ≈10 m stand-off, several → their extent |
 | Status bars | left: mean dataset confidence + **Scale: Metadata / Format / Unknown** (tooltip: units, orientation, position, terrain source, warnings); right (real-world values): map scale (≈90 px, 1-2-5), camera altitude, elevation and position of the selected point (else the orbit target), compass (rotates with heading; click = face north) |
-| Keyboard | Esc clears selection; sliders support arrows/Home/End |
+| Crop | toolbar Crop (blue while open) → **floating Crop panel above the central control panel** (not in the left panel): X / Y / Z cards with typed min–max (real-world m) synced with two-tick bar sliders over the model's bounding box; header On/Off toggle, Reset, close (X); subtle crop box in the view |
+| Keyboard | Esc clears selection; **Ctrl/⌘+Z undo, Ctrl+Y / Ctrl+Shift+Z redo** (history moved off the toolbar); sliders support arrows/Home/End |
+
+## Crop (visualization only) — Sep 2026
+Replaces the toolbar Undo/Redo. Limits which part of the loaded model is **drawn and pickable**; the
+dataset, the uploaded file and the source model are never modified — fully reversible.
+- **State** (`pointCloudStore.ts`): `crop: { enabled, min: Vec3, max: Vec3 }` in **world-local** metres
+  (the same frame as rendering / measurements / elevation filter) + `cropOpen` (Crop Mode = controls + box
+  shown). `fullCrop(ds)` = the dataset's full `bounds` (computed at load from the real, transformed model —
+  no hard-coded coordinates); `initDataset` always installs `fullCrop(ds)` so a new model never inherits
+  the previous crop, and closes Crop Mode. Helpers: `isCropActive` (enabled and smaller than the bounds),
+  `insideCrop(crop, p)`.
+- **Actions**: `toggleCropMode`, `setCropAxis(axis, {min?, max?})` (clamped to the bounds, min ≤ max; slider
+  drags call it live), `commitCrop` (on slider release / typed value), `setCropEnabled` (values kept while
+  disabled), `resetCrop` (back to the full box, keeps enabled state, camera untouched).
+- **Rendering**: the vertex shader computes `w = uLinear * position` (model transform) once and tests
+  `uCropMin ≤ w ≤ uCropMax` (`uCropOn`) **together with** the existing tests — final visibility = points
+  layer ∧ density ∧ **crop** ∧ elevation ∧ confidence ∧ semantic class. A crop change writes 2 vec3
+  uniforms + 1 float and re-renders one frame: no reload, re-parse, buffer upload or scene rebuild.
+  (`uLinear` replaced the former `uZRow`; z for the elevation filter / colouring is `w.z`.)
+- **Crop box**: unit-cube `EdgesGeometry` in the `model` group (so it follows Flip), scaled/moved to the
+  crop, white 50 % opacity, depth test off, visible only while Crop Mode is open and the crop is enabled.
+- **Picking / measurements**: CPU picking applies the same crop test (cropped-out points can't be
+  selected). On `commitCrop` (and after Ctrl+Z/Y restores a selection) selected points outside the active
+  crop are deselected, so Measurements / Terrain Statistics only ever use visible points. The crop is not
+  an undo step (view region, like panel state).
+- **UI** (→ updated, see "Central control panel" below): the Crop controls are a floating panel
+  (`CropControl.tsx`) above the central control panel — they were first built as a left-panel section and
+  moved out; the left panel no longer contains anything crop-related. Toolbar button is blue only while
+  the panel is open; a crop still applied behind a closed panel shows a small white dot on the button.
+- **Verified** (headless Chrome, real UI, demo GLB): button present / no Undo-Redo; opens panel; full
+  bounds initially; mouse-dragged X max 60 % and X min 25 % hide points live; Y min/max, typed Z max,
+  Z min; all axes at once; elevation filter + semantic filter combine with crop; clicks pick only inside;
+  selection pruned when cropped out; disable → full model with values kept, re-enable restores; Reset
+  (camera unchanged); wheel / tilt / heading; Ctrl+Z; closing Crop Mode keeps the crop; uploading a
+  second model (Parque Copán GLB) resets the crop to its own bounds; source file untouched. `tsc`/build clean.
+- **Limitations**: axis-aligned box in world-local axes only (no rotated box, no drag handles in 3D);
+  the Default Survey View / Focus frame the whole model, not the crop; crop is not saved across reloads.
+  Sliders are disabled while the crop is Off (typed values still apply).
+
+## Central control panel — floating tools & active states (Sep 2026)
+Reference: `context/central_control_panel.png` (Figma scale ×2 → design px).
+- **Floating panels** share `FloatingPanel` (`ui.tsx`): `bg-hud-tilt` glass, `hud-border`, 5 px radius,
+  7.8 px blur, Jersey 14 px title top-left, 13 px X top-right (+ optional header actions), cards =
+  `FLOAT_CARD`. `left` is given in **toolbar design px** and converted with the toolbar's centre and
+  `--pc-toolbar-scale` (`calc(50% + 3.5px + (left − 358.5)·scale)`), bottom = 5 px above the scaled bar —
+  the same anchoring the Rotations panel always used.
+  - **Crop** (`CropControl.tsx`): toolbar x 191, 264 × 198; three 243 × 49 cards (X, Y, Z) with min / max
+    value boxes (58 × 16, `NumberField`) and a 198 × 7 `RangeTrack variant="bar"`; header: On/Off
+    `Toggle`, Reset, X.
+  - **Rotations** (`TiltHeadingControl.tsx`): toolbar x 465, 181 × 121 (unchanged); now titled
+    "Rotations" with Tilt / Heading icons; bars shifted to x 26, 133 wide.
+  - Both can be open together: Crop ends at toolbar x 455, Rotations starts at 465 (≥ 10 px gap at every
+    toolbar scale, verified 34 px at 1440 × 900); neither overlaps the bar (4.9 px gap).
+- **Bars** (`BarSlider`, `RangeTrack variant="bar"`): flat bar, white fill, thin white tick at each value
+  (reference). The side-panel sliders keep the knob style.
+- **State**: `cropOpen` and `rotationsOpen` in the store, both **false by default** (`rotationsOpen` was
+  true before) and toggled by `pc.toggleCropMode` / `pc.toggleRotations` from the toolbar button or the
+  panel's X — one source of truth, no local component state. Closing Crop only hides the panel + crop box;
+  the crop stays applied (viewport filter).
+- **Active = blue**: `ACTIVE_BLUE` (`#0083D5`, the Invite button's accent; hover `#1592e6`) replaced the
+  white `ACTIVE_FILL` for every *stateful* control: current tool (Select / Pan), Lock, Flip (menu open or
+  any flip on; menu items when on), flight Path, Crop (panel open), Rotations (panel open), 2D / 3D (current
+  mode), Fullscreen (while fullscreen). Momentary actions (Focus, Ruler, Layers, zoom −/+, distance) are
+  never blue. Inactive = the existing dark glass. Default screen: Select, Path and 3D are blue (they are
+  on); Crop and Rotations are dark.
+- **Verified** (headless Chrome, demo GLB, real clicks / drags; CSS transitions frozen for colour reads):
+  both panels closed + dark by default; no crop in the left panel; Select/Pan and 2D/3D blue swap; Focus
+  never blue; Crop / Rotations blue when open, dark when closed (button or X); panels 4.9 px above the bar,
+  not overlapping each other; X-max / Y-min drags crop 100 % → 61 % of points; typed Z max ↔ slider sync;
+  3 axes 28 %; On/Off keeps values; Reset; Tilt drag → 90°, Heading → 90°; selection, measurements,
+  render mode, density, size, wheel zoom still work; `tsc` + build clean.
 
 ## Visual system (unchanged design, one deliberate change)
 - Left/right panels are now **translucent glass** like the toolbar/tilt panel/status bars:
   `SIDE_PANEL` = `rgba(32,38,43,.6)` + 1 px light border + 7.8 px blur + shadow (`HUD_SURFACE` is the grey
   variant for small controls, `MENU_SURFACE` for dropdowns). Same recipe everywhere via `ui.tsx` constants.
-- States stay neutral: `HOVER` (white/12 %), `ACTIVE_FILL` (white/22 % + border), `DISABLED` (40 % opacity),
-  `FOCUS_RING`. No new accent colours (only the design's existing chip/class colours).
+- States: `HOVER` (white/12 %), `DISABLED` (40 % opacity), `FOCUS_RING`; **active controls in the central
+  control panel = `ACTIVE_BLUE` (#0083D5)** — replaced the neutral `ACTIVE_FILL` (white/22 %) in Sep 2026 per
+  `context/central_control_panel.png`. No other new accent colours.
 - Layout regression: at 2048×1143 the panel/toolbar/menu edges still match the reference within ~1 px
   (numeric edge scan against `Point_Cloud_View.png`).
 

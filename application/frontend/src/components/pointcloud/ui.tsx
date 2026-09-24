@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronDown, ChevronUp, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent, PointerEvent, ReactNode } from 'react'
 
@@ -25,11 +25,75 @@ export const MENU_SURFACE =
 
 /** Interaction states, kept inside the neutral grey/white system. */
 export const HOVER = 'transition-colors hover:bg-white/[0.12]'
-export const ACTIVE_FILL = 'bg-white/[0.22] border-white/25'
+/**
+ * Active state of the central control panel (a tool / mode / panel that is ON):
+ * the app's accent blue (#0083D5, same as Invite). Inactive buttons keep the
+ * dark glass look — blue always means "active", never decoration.
+ */
+export const ACTIVE_BLUE = 'border-[#0083D5] bg-[#0083D5] transition-colors hover:bg-[#1592e6]'
 export const DISABLED = 'cursor-not-allowed opacity-40'
 export const FOCUS_RING = 'outline-none focus-visible:ring-1 focus-visible:ring-white/60'
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
+
+/* ------------------------------ floating tool panels ------------------------------ */
+
+/** Figma width of the bottom toolbar (its centre sits at 50 % + 3.5 px of the stage). */
+const TOOLBAR_HALF_WIDTH = 717 / 2
+
+/**
+ * Glass panel floating 5 px above the central control panel (Rotations, Crop —
+ * reference `context/central_control_panel.png`). `left` is the panel's x in
+ * TOOLBAR design px, so it tracks the toolbar through `--pc-toolbar-scale` just
+ * like the toolbar itself. Title top-left, optional header `actions`, close (X)
+ * top-right.
+ */
+export function FloatingPanel({
+  title,
+  label,
+  left,
+  width,
+  height,
+  onClose,
+  actions,
+  children,
+}: {
+  title: string
+  label: string
+  left: number
+  width: number
+  height: number
+  onClose: () => void
+  actions?: ReactNode
+  children?: ReactNode
+}) {
+  return (
+    <div
+      role="group"
+      aria-label={label}
+      className="pointer-events-auto absolute bottom-[calc(28px+51px*var(--pc-toolbar-scale,1))] rounded-[5px] border border-hud-border bg-hud-tilt backdrop-blur-[7.8px]"
+      style={{ left: `calc(50% + 3.5px + ${left - TOOLBAR_HALF_WIDTH}px * var(--pc-toolbar-scale, 1))`, width, height }}
+    >
+      <span className="absolute left-[7px] top-[5px] font-jersey10 text-[14px] leading-[15px] text-white">{title}</span>
+      <div className="absolute right-[9px] top-[4px] flex items-center gap-[5px]">
+        {actions}
+        <button
+          type="button"
+          title="Close"
+          aria-label={`Close ${title.toLowerCase()}`}
+          onClick={onClose}
+          className={`${HUD_SURFACE} ${HOVER} ${FOCUS_RING} flex h-[13px] w-[13px] items-center justify-center`}
+        >
+          <X size={9} strokeWidth={2.4} color="#fff" />
+        </button>
+      </div>
+      {children}
+    </div>
+  )
+}
+
+/** A rounded glass card inside a floating panel (one Tilt / Heading / X / Y / Z row). */
+export const FLOAT_CARD = 'absolute rounded-[5px] border border-hud-border bg-hud backdrop-blur-[7.8px]'
 
 /* ------------------------------ sections ------------------------------ */
 
@@ -237,7 +301,14 @@ export function SliderTrack({
   )
 }
 
-/** Two-knob range slider: `from` / `to` are 0–1; the nearest knob follows the pointer. */
+/** Thin white value marker of the floating-panel bars (Rotations / Crop reference style). */
+const TICK = 'pointer-events-none absolute -bottom-[3px] -top-[3px] w-px -translate-x-1/2 bg-white'
+
+/**
+ * Two-knob range slider: `from` / `to` are 0–1; the nearest knob follows the pointer.
+ * `variant="bar"` = the floating-panel look (flat bar, white fill between two tick
+ * marks, like `BarSlider`); the default is the side-panel knob track.
+ */
 export function RangeTrack({
   from,
   to,
@@ -247,7 +318,15 @@ export function RangeTrack({
   valueText,
   disabled = false,
   step = 0.02,
-}: SliderProps & { from: number; to: number; onChange: (range: { from?: number; to?: number }) => void }) {
+  variant = 'knob',
+  className = '',
+}: SliderProps & {
+  from: number
+  to: number
+  onChange: (range: { from?: number; to?: number }) => void
+  variant?: 'knob' | 'bar'
+  className?: string
+}) {
   const active = useRef<'from' | 'to'>('to')
   const { ref, handlers } = useTrackDrag(
     (f, phase) => {
@@ -269,15 +348,29 @@ export function RangeTrack({
     onChange({ [knob]: clamp01(current + delta) })
     event.preventDefault()
   }
+  const bar = variant === 'bar'
   return (
-    <div ref={ref} className={`relative h-[8px] ${disabled ? DISABLED : ''}`}>
-      <div className={`${TRACK} bg-[#2c3136]`} />
-      <div
-        className={`${TRACK} bg-[#b3b6ba]`}
-        style={{ left: `${from * 100}%`, width: `${(to - from) * 100}%` }}
-      />
-      <div className={KNOB} style={{ left: `${from * 100}%` }} />
-      <div className={KNOB} style={{ left: `${to * 100}%` }} />
+    <div
+      ref={ref}
+      className={`relative ${bar ? 'bg-[rgba(150,150,150,0.51)]' : 'h-[8px]'} ${disabled ? DISABLED : ''} ${className}`}
+    >
+      {bar ? (
+        <>
+          <div className="absolute inset-y-0 bg-[#f8f8f8]" style={{ left: `${from * 100}%`, width: `${(to - from) * 100}%` }} />
+          <div className={TICK} style={{ left: `${from * 100}%` }} />
+          <div className={TICK} style={{ left: `${to * 100}%` }} />
+        </>
+      ) : (
+        <>
+          <div className={`${TRACK} bg-[#2c3136]`} />
+          <div
+            className={`${TRACK} bg-[#b3b6ba]`}
+            style={{ left: `${from * 100}%`, width: `${(to - from) * 100}%` }}
+          />
+          <div className={KNOB} style={{ left: `${from * 100}%` }} />
+          <div className={KNOB} style={{ left: `${to * 100}%` }} />
+        </>
+      )}
       <div
         role="slider"
         tabIndex={disabled ? -1 : 0}
@@ -318,6 +411,7 @@ export function BarSlider({
   return (
     <div ref={ref} className={`relative bg-[rgba(150,150,150,0.51)] ${disabled ? DISABLED : ''} ${className}`}>
       <div className="h-full bg-[#f8f8f8]" style={{ width: `${value * 100}%` }} />
+      <div className={TICK} style={{ left: `${value * 100}%` }} />
       <div
         role="slider"
         tabIndex={disabled ? -1 : 0}

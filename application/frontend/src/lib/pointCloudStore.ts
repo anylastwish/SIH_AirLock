@@ -75,8 +75,25 @@ export type LoadStatus =
   | { kind: 'unsupported'; message: string }
   | { kind: 'error'; message: string }
 
+export type CropAxis = 0 | 1 | 2
+
+/**
+ * Visualization-only crop: an axis-aligned box in WORLD-LOCAL coordinates (the
+ * frame points are rendered and measured in). Points outside are not drawn and
+ * not pickable; the dataset / source file are never touched. `min`/`max`
+ * persist while `enabled` is off, so the crop can be toggled without losing it.
+ */
+export interface CropState {
+  enabled: boolean
+  min: Vec3
+  max: Vec3
+}
+
 export interface PointCloudState extends ViewSettings {
   dataset: PointCloudDataset | null
+  crop: CropState
+  /** Crop Mode: the toolbar Crop button shows the crop controls + crop box. */
+  cropOpen: boolean
   status: LoadStatus
   defaultCamera: CameraState | null
   selectionMode: SelectionMode
@@ -110,8 +127,30 @@ const allClasses = () =>
 
 const emptyCamera: CameraState = { target: [0, 0, 0], distance: 100, heading: DEFAULT_HEADING, tilt: DEFAULT_TILT }
 
+/** Crop covering the whole dataset (its full world-local bounding box) — a no-op crop. */
+export const fullCrop = (ds: PointCloudDataset | null): CropState => ({
+  enabled: true,
+  min: ds ? [...ds.bounds.min] : [-Infinity, -Infinity, -Infinity],
+  max: ds ? [...ds.bounds.max] : [Infinity, Infinity, Infinity],
+})
+
+/** True when the crop hides part of the model (enabled and smaller than the full bounds). */
+export function isCropActive(s: Pick<PointCloudState, 'crop' | 'dataset'>): boolean {
+  const ds = s.dataset
+  if (!ds || !s.crop.enabled) return false
+  return [0, 1, 2].some((k) => s.crop.min[k] > ds.bounds.min[k] || s.crop.max[k] < ds.bounds.max[k])
+}
+
+/** Is a world-local position inside the active crop? (Always true when the crop is disabled.) */
+export function insideCrop(crop: CropState, p: Vec3): boolean {
+  if (!crop.enabled) return true
+  return p[0] >= crop.min[0] && p[0] <= crop.max[0] && p[1] >= crop.min[1] && p[1] <= crop.max[1] && p[2] >= crop.min[2] && p[2] <= crop.max[2]
+}
+
 const initialState = (): PointCloudState => ({
   dataset: null,
+  crop: fullCrop(null),
+  cropOpen: false,
   status: { kind: 'idle' },
   defaultCamera: null,
   layers: { points: true, terrain: true, flightPath: true, surveyBoundary: false },
@@ -130,7 +169,7 @@ const initialState = (): PointCloudState => ({
   tool: 'select',
   navLocked: false,
   classQuery: '',
-  rotationsOpen: true,
+  rotationsOpen: false,
   fullscreen: false,
   cameraRev: 0,
   cameraAnimate: false,
@@ -179,6 +218,19 @@ const snapshotOf = (s: PointCloudState): Snapshot => ({
 let past: Snapshot[] = []
 let future: Snapshot[] = []
 let present: Snapshot | null = null
+
+/**
+ * The crop is not part of the history (it is a view region, not a step). A
+ * restored selection therefore drops points hidden by the current crop.
+ */
+function withinCrop(snapshot: Snapshot): Snapshot {
+  const ds = state.dataset
+  if (!ds || !isCropActive(state)) return snapshot
+  const selectedIds = snapshot.selectedIds.filter((id) => insideCrop(state.crop, pointXYZ(ds, id)))
+  if (selectedIds.length === snapshot.selectedIds.length) return snapshot
+  const activeId = snapshot.activeId !== null && selectedIds.includes(snapshot.activeId) ? snapshot.activeId : (selectedIds[selectedIds.length - 1] ?? null)
+  return { ...snapshot, selectedIds, activeId }
+}
 
 function syncHistoryFlags() {
   set({ canUndo: past.length > 0, canRedo: future.length > 0 })
@@ -299,6 +351,8 @@ export const pc = {
     state = {
       ...initialState(),
       dataset: ds,
+      // A new model always starts uncropped, from ITS OWN bounding box (never the previous model's crop).
+      crop: fullCrop(ds),
       status: { kind: 'ready' },
       defaultCamera,
       camera: defaultCamera,
@@ -503,6 +557,52 @@ export const pc = {
     set({ layersFlash: state.layersFlash + 1 })
   },
 
+  /* ---- crop (visualization only — the dataset is never modified) ---- */
+  /** Toolbar Crop button: show / hide the crop controls and crop box. The crop itself stays applied. */
+  toggleCropMode() {
+    set({ cropOpen: !state.cropOpen })
+  },
+  /** Slider drag / typed value for one axis (world-local metres). Call `commitCrop()` on release. */
+  setCropAxis(axis: CropAxis, range: { min?: number; max?: number }) {
+    const ds = state.dataset
+    if (!ds) return
+    const lo = ds.bounds.min[axis]
+    const hi = ds.bounds.max[axis]
+    let min = clamp(range.min ?? state.crop.min[axis], lo, hi)
+    let max = clamp(range.max ?? state.crop.max[axis], lo, hi)
+    if (min > max) {
+      if (range.min !== undefined) max = min
+      else min = max
+    }
+    const nextMin: Vec3 = [...state.crop.min]
+    const nextMax: Vec3 = [...state.crop.max]
+    nextMin[axis] = min
+    nextMax[axis] = max
+    set({ crop: { ...state.crop, min: nextMin, max: nextMax } })
+  },
+  setCropEnabled(enabled: boolean) {
+    set({ crop: { ...state.crop, enabled } })
+    pc.commitCrop()
+  },
+  /** Back to the model's full bounding box (camera unchanged). */
+  resetCrop() {
+    set({ crop: { ...fullCrop(state.dataset), enabled: state.crop.enabled } })
+    pc.commitCrop()
+  },
+  /**
+   * Crop edit finished: selected points now outside the visible region are
+   * deselected, so measurements only ever use visible points (the points
+   * themselves stay in the dataset and reappear when the crop is widened).
+   */
+  commitCrop() {
+    const ds = state.dataset
+    if (!ds) return
+    const kept = state.selectedIds.filter((id) => insideCrop(state.crop, pointXYZ(ds, id)))
+    if (kept.length === state.selectedIds.length) return
+    set({ selectedIds: kept, activeId: state.activeId !== null && kept.includes(state.activeId) ? state.activeId : (kept[kept.length - 1] ?? null) })
+    pc.commit()
+  },
+
   /* ---- history ---- */
   /** Record the current view/selection as an undo step (no-op if nothing changed). */
   commit() {
@@ -519,7 +619,7 @@ export const pc = {
     if (!previous) return
     if (present) future.push(present)
     present = previous
-    set({ ...previous, cameraRev: state.cameraRev + 1, cameraAnimate: true })
+    set({ ...withinCrop(previous), cameraRev: state.cameraRev + 1, cameraAnimate: true })
     syncHistoryFlags()
   },
   redo() {
@@ -527,7 +627,7 @@ export const pc = {
     if (!next) return
     if (present) past.push(present)
     present = next
-    set({ ...next, cameraRev: state.cameraRev + 1, cameraAnimate: true })
+    set({ ...withinCrop(next), cameraRev: state.cameraRev + 1, cameraAnimate: true })
     syncHistoryFlags()
   },
 }
